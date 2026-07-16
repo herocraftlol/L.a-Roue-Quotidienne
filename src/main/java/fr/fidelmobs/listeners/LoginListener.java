@@ -28,39 +28,44 @@ public class LoginListener implements Listener {
 
         LocalDate aujourdHui = LocalDate.now();
         LocalDate derniere = data.getLastLogin(uuid);
+        boolean dejaCompteAujourdHui = derniere != null && derniere.equals(aujourdHui);
 
-        if (derniere != null && derniere.equals(aujourdHui)) {
-            // déjà compté aujourd'hui, on ne redonne rien
-            return;
+        if (!dejaCompteAujourdHui) {
+            int streak = data.getStreak(uuid);
+            if (derniere != null && derniere.plusDays(1).equals(aujourdHui)) {
+                streak += 1;
+            } else {
+                streak = 1;
+            }
+
+            data.setStreak(uuid, streak);
+            data.setLastLogin(uuid, aujourdHui);
+
+            int ticketsDuJour = plugin.getConfig().getInt("tickets-par-jour", 1);
+            data.addTickets(uuid, ticketsDuJour);
+
+            StringBuilder message = new StringBuilder();
+            message.append("§b[Fidélité] §fSérie de connexions : §e").append(streak).append(" jour(s)")
+                    .append(" §7(+").append(ticketsDuJour).append(" ticket(s))");
+
+            ConfigurationSection paliers = plugin.getConfig().getConfigurationSection("paliers-serie");
+            if (paliers != null && paliers.contains(String.valueOf(streak))) {
+                int bonus = paliers.getInt(String.valueOf(streak));
+                data.addTickets(uuid, bonus);
+                message.append("\n§6[Palier atteint !] §fBonus de §e").append(bonus).append(" ticket(s) §fpour ")
+                        .append(streak).append(" jours consécutifs !");
+            }
+
+            data.save(uuid);
+            player.sendMessage(message.toString());
         }
 
-        int streak = data.getStreak(uuid);
-        if (derniere != null && derniere.plusDays(1).equals(aujourdHui)) {
-            streak += 1;
-        } else {
-            streak = 1;
+        // Rappel affiché à CHAQUE connexion tant que le joueur a des tickets non utilisés,
+        // pas seulement le jour où ils ont été gagnés.
+        int tickets = data.getTickets(uuid);
+        if (tickets > 0) {
+            player.sendMessage("§7Tu as §e" + tickets + " ticket(s) de roue en attente §7! Utilise §f/roue "
+                    + "§7pour les lancer et obtenir un mob, un bloc et un équipement.");
         }
-
-        data.setStreak(uuid, streak);
-        data.setLastLogin(uuid, aujourdHui);
-
-        int ticketsDuJour = plugin.getConfig().getInt("tickets-par-jour", 1);
-        data.addTickets(uuid, ticketsDuJour);
-
-        StringBuilder message = new StringBuilder();
-        message.append("§b[Fidélité] §fSérie de connexions : §e").append(streak).append(" jour(s)")
-                .append(" §7(+").append(ticketsDuJour).append(" ticket(s))");
-
-        ConfigurationSection paliers = plugin.getConfig().getConfigurationSection("paliers-serie");
-        if (paliers != null && paliers.contains(String.valueOf(streak))) {
-            int bonus = paliers.getInt(String.valueOf(streak));
-            data.addTickets(uuid, bonus);
-            message.append("\n§6[Palier atteint !] §fBonus de §e").append(bonus).append(" ticket(s) §fpour ")
-                    .append(streak).append(" jours consécutifs !");
-        }
-
-        data.save(uuid);
-        player.sendMessage(message.toString());
-        player.sendMessage("§7Utilise §f/roue §7pour tenter d'obtenir un mob, et §f/armee §7pour voir ta collection.");
     }
 }

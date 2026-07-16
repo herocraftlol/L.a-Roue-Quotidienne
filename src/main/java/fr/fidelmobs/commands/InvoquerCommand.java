@@ -63,9 +63,7 @@ public class InvoquerCommand implements CommandExecutor, TabCompleter {
         }
         data.save(uuid);
 
-        Location spawnLoc = player.getLocation().add(
-                player.getLocation().getDirection().normalize().multiply(2)
-        );
+        Location spawnLoc = trouverPositionSpawnValide(player);
         Entity entite = player.getWorld().spawnEntity(spawnLoc, type);
         MobRarity rarete = MobRegistry.getRarete(type);
         entite.setCustomName(rarete.getCouleur() + player.getName() + "'s " + nomLisible(type));
@@ -77,6 +75,30 @@ public class InvoquerCommand implements CommandExecutor, TabCompleter {
 
         player.sendMessage("§aTu as invoqué " + rarete.getCouleur() + nomLisible(type) + " §aà tes côtés !");
         return true;
+    }
+
+    /**
+     * Cherche une position devant le joueur avec un sol solide sous les pieds (l'arène ne fait
+     * qu'une couche de blocs, donc un décalage de 2 blocs peut retomber dans le vide en bordure).
+     * Se replie progressivement sur une position plus proche du joueur, puis sur sa position
+     * exacte en dernier recours (toujours solide puisqu'il s'y tient déjà).
+     */
+    private Location trouverPositionSpawnValide(Player player) {
+        Location base = player.getLocation();
+        org.bukkit.util.Vector direction = base.getDirection().normalize();
+
+        for (double distance = 2.0; distance >= 1.0; distance -= 1.0) {
+            Location candidate = base.clone().add(direction.clone().multiply(distance));
+            if (solSolide(candidate)) {
+                return candidate;
+            }
+        }
+        return base.clone();
+    }
+
+    private boolean solSolide(Location loc) {
+        Location sousPieds = loc.clone().subtract(0, 1, 0);
+        return sousPieds.getBlock().getType().isSolid();
     }
 
     private String nomLisible(EntityType type) {

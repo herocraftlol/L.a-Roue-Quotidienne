@@ -15,30 +15,14 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.Random;
 import java.util.UUID;
 
 public class RoueCommand implements CommandExecutor {
 
     private final LoyaltyMobsPlugin plugin;
-    private final Random random = new Random();
 
     public RoueCommand(LoyaltyMobsPlugin plugin) {
         this.plugin = plugin;
-    }
-
-    private enum Categorie { MOB, BLOC, EQUIPEMENT }
-
-    private Categorie tirerCategorie() {
-        int poidsMob = plugin.getConfig().getInt("roue.poids-categories.mob", 60);
-        int poidsBloc = plugin.getConfig().getInt("roue.poids-categories.bloc", 20);
-        int poidsEquipement = plugin.getConfig().getInt("roue.poids-categories.equipement", 20);
-        int total = poidsMob + poidsBloc + poidsEquipement;
-        int tirage = random.nextInt(Math.max(1, total));
-
-        if (tirage < poidsMob) return Categorie.MOB;
-        if (tirage < poidsMob + poidsBloc) return Categorie.BLOC;
-        return Categorie.EQUIPEMENT;
     }
 
     @Override
@@ -58,11 +42,10 @@ public class RoueCommand implements CommandExecutor {
 
         player.sendMessage("§b=== Roue de la fidélité ===");
 
-        switch (tirerCategorie()) {
-            case MOB -> tirerMob(player, data, uuid);
-            case BLOC -> tirerBloc(player, data, uuid);
-            case EQUIPEMENT -> tirerEquipement(player, data, uuid);
-        }
+        // Un lancer de roue donne désormais une récompense de chaque catégorie
+        tirerMob(player, data, uuid);
+        tirerBloc(player, data, uuid);
+        tirerEquipement(player, data, uuid);
 
         data.save(uuid);
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);

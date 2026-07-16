@@ -22,6 +22,9 @@ import java.util.UUID;
  */
 public class KitManager {
 
+    // Slot de la barre d'accès rapide où l'épée du kit doit toujours apparaître (le premier)
+    public static final int SLOT_ARME = 0;
+
     private final LoyaltyMobsPlugin plugin;
 
     public KitManager(LoyaltyMobsPlugin plugin) {
@@ -71,7 +74,9 @@ public class KitManager {
                 case CHEST -> eq.setChestplate(objet);
                 case LEGS -> eq.setLeggings(objet);
                 case FEET -> eq.setBoots(objet);
-                case HAND -> eq.setItemInMainHand(objet);
+                // On force le slot 0 plutôt que setItemInMainHand (qui vise le slot
+                // actuellement sélectionné, pas forcément le premier de la barre)
+                case HAND -> player.getInventory().setItem(SLOT_ARME, objet);
                 default -> {
                 }
             }
@@ -86,7 +91,11 @@ public class KitManager {
         if (estKit(eq.getChestplate())) eq.setChestplate(null);
         if (estKit(eq.getLeggings())) eq.setLeggings(null);
         if (estKit(eq.getBoots())) eq.setBoots(null);
-        if (estKit(eq.getItemInMainHand())) eq.setItemInMainHand(null);
+        // On retire l'épée directement au slot 0, plutôt que via la main actuellement
+        // tenue : si le joueur a changé de slot pendant qu'il était en arène,
+        // getItemInMainHand() ne pointait plus vers l'épée et elle restait coincée.
+        ItemStack arme = player.getInventory().getItem(SLOT_ARME);
+        if (estKit(arme)) player.getInventory().setItem(SLOT_ARME, null);
     }
 
     public boolean estKit(ItemStack item) {

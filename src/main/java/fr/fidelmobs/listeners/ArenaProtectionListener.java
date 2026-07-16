@@ -3,6 +3,7 @@ package fr.fidelmobs.listeners;
 import fr.fidelmobs.LoyaltyMobsPlugin;
 import fr.fidelmobs.arena.ArenaManager;
 import fr.fidelmobs.arena.BlockRegistry;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -16,8 +17,11 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -25,6 +29,8 @@ public class ArenaProtectionListener implements Listener {
 
     private final LoyaltyMobsPlugin plugin;
     private final Set<UUID> joueursDansArene = new HashSet<>();
+    // Mode de jeu du joueur avant son entrée en arène, pour le restaurer à la sortie
+    private final Map<UUID, GameMode> modeAvantArene = new HashMap<>();
 
     public ArenaProtectionListener(LoyaltyMobsPlugin plugin) {
         this.plugin = plugin;
@@ -32,6 +38,38 @@ public class ArenaProtectionListener implements Listener {
 
     public boolean estDansArene(Player player) {
         return joueursDansArene.contains(player.getUniqueId());
+    }
+
+    /**
+     * Applique/retire le kit et les effets d'arène selon la nouvelle position du joueur.
+     * Factorisé pour être appelé aussi bien depuis un déplacement classique que depuis
+     * une téléportation (qui ne déclenche pas forcément de PlayerMoveEvent immédiat).
+     */
+    private void gererChangementZone(Player player, Location nouvelleLocation) {
+        if (nouvelleLocation == null) return;
+        ArenaManager arene = plugin.getArenaManager();
+        boolean etaitDedans = joueursDansArene.contains(player.getUniqueId());
+        boolean estDedans = arene.estDansArene(nouvelleLocation);
+
+        if (estDedans && !etaitDedans) {
+            joueursDansArene.add(player.getUniqueId());
+            modeAvantArene.put(player.getUniqueId(), player.getGameMode());
+            player.setGameMode(GameMode.SURVIVAL);
+            plugin.getKitManager().appliquerKit(player);
+            plugin.getBuildBlockManager().entrerEnArene(player);
+            plugin.getScoreboardManager().entrerEnArene(player);
+            player.sendMessage("§c§lVous entrez dans l'arène PvP !");
+        } else if (!estDedans && etaitDedans) {
+            joueursDansArene.remove(player.getUniqueId());
+            GameMode modePrecedent = modeAvantArene.remove(player.getUniqueId());
+            if (modePrecedent != null) {
+                player.setGameMode(modePrecedent);
+            }
+            plugin.getKitManager().retirerKit(player);
+            plugin.getBuildBlockManager().sortirDeArene(player);
+            plugin.getScoreboardManager().sortirDeArene(player);
+            player.sendMessage("§7Vous quittez l'arène PvP.");
+        }
     }
 
     @EventHandler
@@ -44,24 +82,15 @@ public class ArenaProtectionListener implements Listener {
             return;
         }
 
-        Player player = event.getPlayer();
-        ArenaManager arene = plugin.getArenaManager();
-        boolean etaitDedans = joueursDansArene.contains(player.getUniqueId());
-        boolean estDedans = arene.estDansArene(event.getTo());
+        gererChangementZone(event.getPlayer(), event.getTo());
+    }
 
-        if (estDedans && !etaitDedans) {
-            joueursDansArene.add(player.getUniqueId());
-            plugin.getKitManager().appliquerKit(player);
-            plugin.getBuildBlockManager().entrerEnArene(player);
-            plugin.getScoreboardManager().entrerEnArene(player);
-            player.sendMessage("§c§lVous entrez dans l'arène PvP !");
-        } else if (!estDedans && etaitDedans) {
-            joueursDansArene.remove(player.getUniqueId());
-            plugin.getKitManager().retirerKit(player);
-            plugin.getBuildBlockManager().sortirDeArene(player);
-            plugin.getScoreboardManager().sortirDeArene(player);
-            player.sendMessage("§7Vous quittez l'arène PvP.");
-        }
+    @EventHandler
+    public void onTeleportation(PlayerTeleportEvent event) {
+        // Une téléportation (commande /tp, ender pearl, portail...) doit être détectée
+        // immédiatement, sans attendre un futur PlayerMoveEvent qui peut être retardé
+        // ou ne jamais correspondre à un vrai changement de bloc suivi.
+        gererChangementZone(event.getPlayer(), event.getTo());
     }
 
     @EventHandler
@@ -158,6 +187,7 @@ public class ArenaProtectionListener implements Listener {
     public void onDeconnexion(PlayerQuitEvent event) {
         UUID uuid = event.getPlayer().getUniqueId();
         joueursDansArene.remove(uuid);
+        modeAvantArene.remove(uuid);
         plugin.getBuildBlockManager().sortirDeArene(event.getPlayer());
         plugin.getScoreboardManager().onDeconnexion(uuid);
     }
