@@ -1,14 +1,21 @@
 package fr.fidelmobs.data;
 
+import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.EntityType;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
 
@@ -121,5 +128,77 @@ public class PlayerDataManager {
             }
         }
         return resultat;
+    }
+
+    // ---- Blocs de construction débloqués (arène PvP) ----
+
+    public Set<Material> getBlocsDebloques(UUID uuid) {
+        List<String> noms = get(uuid).getStringList("blocs_debloques");
+        Set<Material> resultat = new HashSet<>();
+        for (String n : noms) {
+            try {
+                resultat.add(Material.valueOf(n));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        return resultat;
+    }
+
+    public void debloquerBloc(UUID uuid, Material material) {
+        Set<Material> blocs = getBlocsDebloques(uuid);
+        blocs.add(material);
+        List<String> noms = new ArrayList<>();
+        for (Material m : blocs) noms.add(m.name());
+        get(uuid).set("blocs_debloques", noms);
+    }
+
+    public Material getBlocActif(UUID uuid) {
+        String s = get(uuid).getString("bloc_actif");
+        if (s != null) {
+            try {
+                return Material.valueOf(s);
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        return null;
+    }
+
+    public void setBlocActif(UUID uuid, Material material) {
+        get(uuid).set("bloc_actif", material.name());
+    }
+
+    // ---- Équipement PvP (collection d'objets obtenus à la roue) ----
+
+    @SuppressWarnings("unchecked")
+    public List<ItemStack> getEquipements(UUID uuid) {
+        List<?> brut = get(uuid).getList("equipements");
+        List<ItemStack> resultat = new ArrayList<>();
+        if (brut != null) {
+            for (Object o : brut) {
+                if (o instanceof ItemStack is) {
+                    resultat.add(is);
+                }
+            }
+        }
+        return resultat;
+    }
+
+    public int ajouterEquipement(UUID uuid, ItemStack item) {
+        List<ItemStack> liste = getEquipements(uuid);
+        liste.add(item);
+        get(uuid).set("equipements", liste);
+        return liste.size() - 1;
+    }
+
+    private String cheminEquipe(EquipmentSlot slot) {
+        return "equipe." + slot.name();
+    }
+
+    public int getIndexEquipe(UUID uuid, EquipmentSlot slot) {
+        return get(uuid).getInt(cheminEquipe(slot), -1);
+    }
+
+    public void setIndexEquipe(UUID uuid, EquipmentSlot slot, int index) {
+        get(uuid).set(cheminEquipe(slot), index);
     }
 }

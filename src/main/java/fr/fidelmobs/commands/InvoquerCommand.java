@@ -6,12 +6,10 @@ import fr.fidelmobs.listeners.AllyListener;
 import fr.fidelmobs.mobs.MobRarity;
 import fr.fidelmobs.mobs.MobRegistry;
 import org.bukkit.Location;
-import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Mob;
@@ -45,7 +43,7 @@ public class InvoquerCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        if (!estDansArene(player.getLocation())) {
+        if (!plugin.getArenaManager().estDansArene(player.getLocation())) {
             player.sendMessage("§cTu ne peux invoquer un allié que dans l'arène PvP.");
             return true;
         }
@@ -79,34 +77,6 @@ public class InvoquerCommand implements CommandExecutor, TabCompleter {
 
         player.sendMessage("§aTu as invoqué " + rarete.getCouleur() + nomLisible(type) + " §aà tes côtés !");
         return true;
-    }
-
-    private boolean estDansArene(Location loc) {
-        ConfigurationSection arene = plugin.getConfig().getConfigurationSection("arene");
-        if (arene == null || !arene.getBoolean("activer", true)) {
-            return true; // vérification désactivée
-        }
-
-        String mondeNom = arene.getString("monde");
-        World monde = plugin.getServer().getWorld(mondeNom);
-        if (monde == null || !monde.equals(loc.getWorld())) {
-            return false;
-        }
-
-        ConfigurationSection c1 = arene.getConfigurationSection("coin1");
-        ConfigurationSection c2 = arene.getConfigurationSection("coin2");
-        if (c1 == null || c2 == null) {
-            return true;
-        }
-
-        double x1 = c1.getDouble("x"), y1 = c1.getDouble("y"), z1 = c1.getDouble("z");
-        double x2 = c2.getDouble("x"), y2 = c2.getDouble("y"), z2 = c2.getDouble("z");
-
-        double x = loc.getX(), y = loc.getY(), z = loc.getZ();
-
-        return x >= Math.min(x1, x2) && x <= Math.max(x1, x2)
-                && y >= Math.min(y1, y2) && y <= Math.max(y1, y2)
-                && z >= Math.min(z1, z2) && z <= Math.max(z1, z2);
     }
 
     private String nomLisible(EntityType type) {

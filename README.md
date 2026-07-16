@@ -1,45 +1,66 @@
 # LoyaltyMobs
 
-Plugin Paper 1.21 de fidélisation par connexions journalières : les joueurs qui se
-connectent plusieurs jours d'affilée gagnent des **tickets**, qu'ils dépensent à la
-**roue** pour obtenir un mob aléatoire (pondéré par rareté, façon cartes à collectionner).
-Les mobs obtenus s'accumulent dans une collection personnelle, consultable et utilisable
-pour invoquer des alliés en arène PvP (à usage unique : le mob est consommé de la collection
-au moment de l'invocation).
+Plugin Paper 1.21 de fidélisation par connexions journalières, avec collection de mobs/blocs/équipements
+à la "roue" façon cartes à collectionner, et une arène PvP configurable avec ses propres règles.
 
 ## Fonctionnalités
 
-- **Connexion quotidienne** : à chaque connexion sur un nouveau jour calendaire, le plugin
-  vérifie si le joueur s'est connecté la veille (série continue) ou non (série repartant à 1),
-  et distribue des tickets (`tickets-par-jour` + bonus de palier définis dans `config.yml`).
-- **`/roue`** : consomme un ticket et tire un mob aléatoire parmi tous les `EntityType`
-  invocables, classés en 5 raretés (Commun, Peu commun, Rare, Épique, Légendaire) avec des
-  probabilités décroissantes. Le mob rejoint la collection du joueur.
-- **`/armee`** : affiche la collection du joueur, triée par rareté puis par nom
-  (ex. `x2 Villager`, `x1 Zombie`, `x5 Wolf`...).
-- **`/invoquer <mob>`** : si le joueur possède au moins un exemplaire du mob et se trouve
-  dans la zone d'arène définie dans `config.yml`, fait apparaître ce mob à ses côtés, le
-  retire de sa collection, et le lie à lui comme allié :
-  - il n'attaque jamais son invocateur ni les alliés de celui-ci ;
-  - il peut cibler les autres joueurs (comportement hostile standard de Minecraft pour les
-    mobs hostiles — les mobs passifs comme la vache ne deviennent pas combattants, ils
-    suivent simplement le joueur) ;
-  - il disparaît à sa mort, à la déconnexion de son propriétaire, ou après la durée de vie
-    maximale configurée.
-- **`/streak`** : affiche la série actuelle et le nombre de tickets disponibles.
+### Fidélisation
+- **Connexion quotidienne** : série de jours consécutifs suivie automatiquement, avec distribution de
+  tickets (`tickets-par-jour` + bonus de palier définis dans `config.yml`).
+- **`/roue`** : consomme un ticket et tire une récompense aléatoire parmi 3 catégories pondérables
+  (`roue.poids-categories` dans `config.yml`) :
+  - **Mob** : un allié invocable en arène, classé en 5 raretés.
+  - **Bloc** : débloque un type de bloc cubique utilisable comme bloc de construction en arène.
+  - **Équipement** : une pièce d'armure ou une épée (cuir → or → fer → diamant → netherite), avec une
+    chance d'être enchantée (auquel cas elle est considérée un cran plus rare).
+- **`/streak`** : série actuelle et tickets disponibles.
+- **`/armee`** : collection de mobs (`x2 Villager`, `x1 Zombie`...).
+- **`/invoquer <mob>`** : fait apparaître un mob de la collection comme allié en arène (le mob est
+  retiré de la collection, il n'attaque jamais son invocateur ni les alliés de celui-ci).
+- **`/bloc liste`** / **`/bloc choisir <type>`** : consulter et changer son bloc de construction actif.
+- **`/equipement liste`** / **`/equipement equiper <numéro>`** : consulter sa collection d'armures/épées
+  et choisir manuellement ce qui est porté (sinon la meilleure pièce obtenue s'équipe automatiquement).
+
+### Arène PvP
+- **`/arenepvp pos1`** et **`/arenepvp pos2`** *(admin, permission `loyaltymobs.admin`)* : définissent les
+  deux coins de la zone d'arène à partir du bloc regardé par l'administrateur (comme un `//pos1`/`//pos2`
+  de WorldEdit, mais basé sur le bloc visé plutôt que la position du joueur). `/arenepvp info` affiche la
+  zone actuelle. Les admins peuvent toujours casser/poser librement dans la zone pour l'aménager.
+- **Dégâts de chute désactivés** à l'intérieur de la zone.
+- **Casse de blocs interdite**, sauf pour un joueur cassant prématurément un bloc qu'il a lui-même posé.
+- **Blocs à poser limités** : chaque joueur dispose d'un pack de 32 blocs (du type actif choisi via
+  `/bloc choisir`). Chaque bloc posé disparaît automatiquement après 10 secondes
+  (`arene.duree-vie-bloc-secondes`). Dès qu'un joueur commence à poser, une charge est régénérée toutes
+  les 3 secondes jusqu'à revenir à 32.
+- **Kit PvP automatique** : à l'entrée dans la zone, chaque joueur reçoit une armure de cuir + épée en
+  bois par défaut (incassable), remplacée par les meilleures pièces d'équipement qu'il a débloquées et
+  équipées. Ce kit ne peut pas être drop ni déplacé dans l'inventaire tant que le joueur est dans la
+  zone, et est automatiquement retiré dès qu'il en sort.
+- **Sidebar dédié**, visible uniquement dans la zone : série de kills (killstreak) en cours et top 5
+  des scores des joueurs actuellement dans l'arène. Les scores sont **éphémères** : ils ne sont jamais
+  sauvegardés sur disque et repartent à 0 à la déconnexion du joueur.
 
 ## Compilation
 
-Ce projet est un module Maven standard utilisant le dépôt PaperMC. Sur une machine avec
-Maven et un accès internet (pour télécharger `paper-api`) :
+Projet Maven standard utilisant le dépôt PaperMC. Sur une machine avec Maven et un accès internet
+(pour télécharger `paper-api`) :
 
 ```bash
 mvn clean package
 ```
 
-Le jar final se trouve dans `target/LoyaltyMobs.jar`. Place-le dans le dossier `plugins/`
-de ton serveur Paper 1.21, démarre le serveur une fois pour générer `config.yml`, puis
-ajuste les coordonnées de l'arène.
+Le jar final se trouve dans `target/LoyaltyMobs.jar`. Place-le dans `plugins/` sur un serveur Paper 1.21,
+démarre le serveur une fois pour générer `config.yml`, puis configure l'arène en jeu.
+
+## Mise en route de l'arène
+
+1. En tant qu'op, place-toi et regarde un bloc formant un premier coin de la zone souhaitée, puis
+   `/arenepvp pos1`.
+2. Regarde le bloc opposé (l'autre coin), puis `/arenepvp pos2`.
+3. `/arenepvp info` pour vérifier les coordonnées enregistrées.
+4. La zone est immédiatement active : tout joueur qui y entre reçoit le kit PvP et le sidebar, tout
+   joueur qui en sort les perd.
 
 ## Configuration (`config.yml`)
 
@@ -50,23 +71,28 @@ paliers-serie:
   7: 5
   14: 10
   30: 25
+roue:
+  poids-categories:
+    mob: 60
+    bloc: 20
+    equipement: 20
 arene:
-  activer: true
-  monde: "world"
-  coin1: {x: -50, y: 0, z: -50}
-  coin2: {x: 50, y: 255, z: 50}
-rayon-recherche-cible: 20
+  monde: ""          # rempli automatiquement par /arenepvp pos1/pos2
+  duree-vie-bloc-secondes: 10
 duree-vie-allie-secondes: 600
 ```
 
-- `arene.activer: false` autorise `/invoquer` n'importe où (déconseillé pour du PvP équilibré).
-- Ajuste `coin1`/`coin2` aux coins opposés de ta zone d'arène (comme un `//pos1` / `//pos2` de WorldEdit).
-- `duree-vie-allie-secondes: 0` = pas de limite de temps, le mob reste tant qu'il n'est pas tué.
+## Permissions
 
-## Pistes d'amélioration possibles
+- `loyaltymobs.use` (défaut : tous) — commandes joueur.
+- `loyaltymobs.admin` (défaut : op) — `/arenepvp`, et bypass des restrictions de casse/pose dans la zone.
 
-- Ajouter une interface graphique (inventaire) pour `/armee` et `/invoquer` plutôt que du texte.
-- Ajouter un cooldown ou une animation pour `/roue` (ex. via le widget interactif Bukkit ou un titre animé).
-- Limiter `/invoquer` au nombre d'alliés simultanés par joueur.
-- Sauvegarder la collection dans une base de données (SQLite/MySQL) si le nombre de joueurs est important,
-  plutôt qu'un fichier YAML par joueur.
+## Limites connues / pistes d'amélioration
+
+- Les mobs invoqués passifs (vache, villageois...) suivent le joueur mais n'attaquent pas, faute d'IA
+  de combat native pour ces mobs — seuls les mobs normalement hostiles se battent réellement.
+- Une seule arène à la fois (les coins sont stockés globalement, pas par nom d'arène).
+- `/roue`, `/armee`, `/equipement` sont en texte brut ; une interface par inventaire serait plus
+  confortable pour de grosses collections.
+- Le classement du sidebar n'affiche que les joueurs actuellement dans l'arène (cohérent avec le
+  principe de scores éphémères).

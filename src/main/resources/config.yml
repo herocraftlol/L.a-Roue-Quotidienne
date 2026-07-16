@@ -10,22 +10,22 @@ paliers-serie:
   14: 10
   30: 25
 
-# Zone de l'arene ou la commande /invoquer est autorisee.
-# Mets "activer: false" pour autoriser l'invocation partout (deconseille).
+# Ponderation des categories de recompenses tirees a la roue (proportions relatives, pas besoin de faire 100)
+roue:
+  poids-categories:
+    mob: 60
+    bloc: 20
+    equipement: 20
+
+# Zone de l'arene PvP. Se configure en jeu avec /arenepvp pos1 et /arenepvp pos2
+# (utilise le bloc regarde par l'administrateur). Ne pas editer coin1/coin2 a la main
+# sauf si tu sais ce que tu fais : le plugin les reecrit automatiquement.
 arene:
-  activer: true
-  monde: "world"
-  coin1:
-    x: -50
-    y: 0
-    z: -50
-  coin2:
-    x: 50
-    y: 255
-    z: 50
+  monde: ""
+  # coin1 et coin2 sont ajoutes automatiquement par /arenepvp pos1 et /arenepvp pos2
 
-# Rayon (en blocs) dans lequel un mob allie cherche un ennemi a attaquer
-rayon-recherche-cible: 20
+  # Duree de vie d'un bloc pose par un joueur avant qu'il ne disparaisse (secondes)
+  duree-vie-bloc-secondes: 10
 
-# Duree de vie maximale d'un mob allie en secondes (0 = illimite tant qu'il ne meurt pas)
+# Duree de vie maximale d'un mob allie invoque en secondes (0 = illimite tant qu'il ne meurt pas)
 duree-vie-allie-secondes: 600
