@@ -122,6 +122,22 @@ public class ArenaManager {
                 && z >= Math.min(z1, z2) && z <= Math.max(z1, z2) + 1;
     }
 
+    /**
+     * Indique si le joueur est tombé sous le niveau du sol de l'arène (dans le vide via
+     * une brèche dans la plateforme), à la verticale de la zone. Ne concerne que le
+     * dessous : une sortie par les côtés n'est pas une chute mortelle.
+     */
+    public boolean estSousLaZone(Location loc) {
+        if (!configuree || loc.getWorld() == null || !loc.getWorld().equals(monde)) {
+            return false;
+        }
+        double x = loc.getX(), y = loc.getY(), z = loc.getZ();
+        boolean sousLeSol = y < Math.min(y1, y2);
+        boolean dansEmpriseXZ = x >= Math.min(x1, x2) && x <= Math.max(x1, x2) + 1
+                && z >= Math.min(z1, z2) && z <= Math.max(z1, z2) + 1;
+        return sousLeSol && dansEmpriseXZ;
+    }
+
     public World getMonde() {
         return monde;
     }

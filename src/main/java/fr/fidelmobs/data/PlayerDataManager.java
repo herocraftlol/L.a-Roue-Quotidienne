@@ -201,4 +201,51 @@ public class PlayerDataManager {
     public void setIndexEquipe(UUID uuid, EquipmentSlot slot, int index) {
         get(uuid).set(cheminEquipe(slot), index);
     }
+
+    // ---- Statistiques PvP (kills / morts, persistantes pour le classement) ----
+
+    public int getKills(UUID uuid) {
+        return get(uuid).getInt("kills", 0);
+    }
+
+    public void ajouterKill(UUID uuid) {
+        get(uuid).set("kills", getKills(uuid) + 1);
+    }
+
+    public int getMorts(UUID uuid) {
+        return get(uuid).getInt("morts", 0);
+    }
+
+    public void ajouterMort(UUID uuid) {
+        get(uuid).set("morts", getMorts(uuid) + 1);
+    }
+
+    /**
+     * Ratio K/D. Sans mort enregistrée, on renvoie directement le nombre de kills
+     * (convention habituelle) plutôt qu'une division par zéro.
+     */
+    public double getRatioKD(UUID uuid) {
+        int kills = getKills(uuid);
+        int morts = getMorts(uuid);
+        return morts == 0 ? kills : (double) kills / morts;
+    }
+
+    /**
+     * Liste tous les joueurs ayant déjà des données sauvegardées (utilisé pour construire
+     * les classements du hologramme, y compris pour les joueurs hors ligne).
+     */
+    public List<UUID> getToutesLesUUID() {
+        List<UUID> resultat = new ArrayList<>();
+        File[] fichiers = dossier.listFiles((dir, nom) -> nom.endsWith(".yml"));
+        if (fichiers != null) {
+            for (File f : fichiers) {
+                String nom = f.getName().substring(0, f.getName().length() - 4);
+                try {
+                    resultat.add(UUID.fromString(nom));
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+        }
+        return resultat;
+    }
 }

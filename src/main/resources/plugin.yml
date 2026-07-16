@@ -28,6 +28,10 @@ commands:
     description: "[Admin] Definit la zone de l'arene PvP via le bloc regarde."
     usage: /arenepvp <pos1|pos2|info>
     permission: loyaltymobs.admin
+  classement:
+    description: "[Admin] Invoque un hologramme de classement PvP (top kills, top morts, meilleurs K/D) a ta position."
+    usage: /classement [retirer]
+    permission: loyaltymobs.admin
 
 permissions:
   loyaltymobs.use:

@@ -4,6 +4,7 @@ import fr.fidelmobs.arena.ArenaManager;
 import fr.fidelmobs.commands.ArenePvpCommand;
 import fr.fidelmobs.commands.ArmeeCommand;
 import fr.fidelmobs.commands.BlocCommand;
+import fr.fidelmobs.commands.ClassementCommand;
 import fr.fidelmobs.commands.EquipementCommand;
 import fr.fidelmobs.commands.InvoquerCommand;
 import fr.fidelmobs.commands.RoueCommand;
@@ -14,6 +15,7 @@ import fr.fidelmobs.listeners.ArenaProtectionListener;
 import fr.fidelmobs.listeners.LoginListener;
 import fr.fidelmobs.managers.ArenaScoreboardManager;
 import fr.fidelmobs.managers.BuildBlockManager;
+import fr.fidelmobs.managers.HologramManager;
 import fr.fidelmobs.managers.KitManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -26,6 +28,7 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
     private BuildBlockManager buildBlockManager;
     private ArenaScoreboardManager scoreboardManager;
     private ArenaProtectionListener arenaProtectionListener;
+    private HologramManager hologramManager;
 
     @Override
     public void onEnable() {
@@ -38,6 +41,7 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
         this.buildBlockManager = new BuildBlockManager(this);
         this.scoreboardManager = new ArenaScoreboardManager(this);
         this.arenaProtectionListener = new ArenaProtectionListener(this);
+        this.hologramManager = new HologramManager(this);
 
         getServer().getPluginManager().registerEvents(new LoginListener(this), this);
         getServer().getPluginManager().registerEvents(allyListener, this);
@@ -48,6 +52,7 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
         getCommand("armee").setExecutor(new ArmeeCommand(this));
         getCommand("arenepvp").setExecutor(new ArenePvpCommand(this));
         getCommand("equipement").setExecutor(new EquipementCommand(this));
+        getCommand("classement").setExecutor(new ClassementCommand(this));
 
         InvoquerCommand invoquerCommand = new InvoquerCommand(this, allyListener);
         getCommand("invoquer").setExecutor(invoquerCommand);
@@ -67,6 +72,9 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
         }
         if (buildBlockManager != null) {
             buildBlockManager.arreterTout();
+        }
+        if (hologramManager != null) {
+            hologramManager.retirer();
         }
         getLogger().info("LoyaltyMobs désactivé.");
     }
@@ -97,5 +105,9 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
 
     public ArenaProtectionListener getArenaProtectionListener() {
         return arenaProtectionListener;
+    }
+
+    public HologramManager getHologramManager() {
+        return hologramManager;
     }
 }

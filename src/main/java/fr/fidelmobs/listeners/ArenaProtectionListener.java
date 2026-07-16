@@ -3,6 +3,7 @@ package fr.fidelmobs.listeners;
 import fr.fidelmobs.LoyaltyMobsPlugin;
 import fr.fidelmobs.arena.ArenaManager;
 import fr.fidelmobs.arena.BlockRegistry;
+import fr.fidelmobs.data.PlayerDataManager;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -82,7 +83,13 @@ public class ArenaProtectionListener implements Listener {
             return;
         }
 
-        gererChangementZone(event.getPlayer(), event.getTo());
+        Player player = event.getPlayer();
+        Location destination = event.getTo();
+
+        // Vérifiée avant le traitement de sortie de zone : le joueur doit encore être
+        // considéré "dans l'arène" au moment de la mort pour que le kill/la mort soit comptée.
+        verifierChuteMortelle(player, destination);
+        gererChangementZone(player, destination);
     }
 
     @EventHandler
@@ -90,7 +97,26 @@ public class ArenaProtectionListener implements Listener {
         // Une téléportation (commande /tp, ender pearl, portail...) doit être détectée
         // immédiatement, sans attendre un futur PlayerMoveEvent qui peut être retardé
         // ou ne jamais correspondre à un vrai changement de bloc suivi.
-        gererChangementZone(event.getPlayer(), event.getTo());
+        Player player = event.getPlayer();
+        Location destination = event.getTo();
+
+        verifierChuteMortelle(player, destination);
+        gererChangementZone(player, destination);
+    }
+
+    /**
+     * Si le joueur passe sous le niveau du sol de l'arène (chute dans le vide via une
+     * brèche dans la plateforme, qui ne fait qu'une seule couche de blocs), il est tué
+     * instantanément plutôt que de tomber indéfiniment. Les joueurs en créatif/spectateur
+     * ne sont pas concernés.
+     */
+    private void verifierChuteMortelle(Player player, Location destination) {
+        if (destination == null) return;
+        if (player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR) return;
+        if (player.isDead() || player.getHealth() <= 0) return;
+        if (plugin.getArenaManager().estSousLaZone(destination)) {
+            player.setHealth(0.0);
+        }
     }
 
     @EventHandler
@@ -180,7 +206,21 @@ public class ArenaProtectionListener implements Listener {
         Player victime = event.getEntity();
         if (!estDansArene(victime)) return;
         Player tueur = victime.getKiller();
+
+        PlayerDataManager data = plugin.getPlayerDataManager();
+        data.ajouterMort(victime.getUniqueId());
+        data.save(victime.getUniqueId());
+        if (tueur != null) {
+            data.ajouterKill(tueur.getUniqueId());
+            data.save(tueur.getUniqueId());
+        }
+
         plugin.getScoreboardManager().enregistrerElimination(tueur, victime);
+
+        // Le kit et les charges de blocs sont prêtés pour la durée du combat en arène :
+        // ils ne doivent jamais finir en loot au sol suite à une mort (PvP ou chute dans le vide).
+        event.getDrops().removeIf(item -> plugin.getKitManager().estKit(item)
+                || plugin.getBuildBlockManager().estItemCharge(item));
     }
 
     @EventHandler

@@ -79,8 +79,10 @@ public class ArenaScoreboardManager {
         obj.setDisplaySlot(DisplaySlot.SIDEBAR);
 
         int killstreak = killstreaks.getOrDefault(player.getUniqueId(), 0);
+        double kd = plugin.getPlayerDataManager().getRatioKD(player.getUniqueId());
 
         int ligne = 15;
+        obj.getScore(String.format(java.util.Locale.ROOT, "§fK/D : §e%.2f", kd)).setScore(ligne--);
         obj.getScore("§fSérie de kills: §e" + killstreak).setScore(ligne--);
         obj.getScore("§7").setScore(ligne--);
         obj.getScore("§6§lTOP SCORES").setScore(ligne--);
