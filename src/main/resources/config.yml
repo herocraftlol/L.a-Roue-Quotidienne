@@ -1,0 +1,31 @@
+# Configuration LoyaltyMobs
+
+# Nombre de tickets donnes chaque jour de connexion (en plus des paliers ci-dessous)
+tickets-par-jour: 1
+
+# Tickets bonus offerts quand la serie de connexions atteint ces paliers (une seule fois par palier atteint dans la serie en cours)
+paliers-serie:
+  3: 2
+  7: 5
+  14: 10
+  30: 25
+
+# Zone de l'arene ou la commande /invoquer est autorisee.
+# Mets "activer: false" pour autoriser l'invocation partout (deconseille).
+arene:
+  activer: true
+  monde: "world"
+  coin1:
+    x: -50
+    y: 0
+    z: -50
+  coin2:
+    x: 50
+    y: 255
+    z: 50
+
+# Rayon (en blocs) dans lequel un mob allie cherche un ennemi a attaquer
+rayon-recherche-cible: 20
+
+# Duree de vie maximale d'un mob allie en secondes (0 = illimite tant qu'il ne meurt pas)
+duree-vie-allie-secondes: 600

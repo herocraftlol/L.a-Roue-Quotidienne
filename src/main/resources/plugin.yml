@@ -1,0 +1,28 @@
+name: LoyaltyMobs
+version: '1.0.0'
+main: fr.fidelmobs.LoyaltyMobsPlugin
+api-version: '1.21'
+author: Toi
+description: Fidélisation par connexions journalières, roue de mobs a collectionner et invocation d'alliés en arène PvP.
+
+commands:
+  streak:
+    description: Affiche ta série de connexions et tes tickets.
+    usage: /streak
+  roue:
+    description: Tourne la roue pour obtenir un mob aléatoire (consomme un ticket).
+    usage: /roue
+  armee:
+    description: Affiche ta collection de mobs.
+    usage: /armee
+  invoquer:
+    description: Invoque un mob de ta collection pour combattre a tes cotes en arene.
+    usage: /invoquer <mob>
+
+permissions:
+  loyaltymobs.use:
+    description: Autorise l'utilisation des commandes du plugin.
+    default: true
+  loyaltymobs.admin:
+    description: Commandes d'administration.
+    default: op
