@@ -156,22 +156,28 @@ public class ArenaProtectionListener implements Listener {
         if (!plugin.getArenaManager().estDansArene(event.getBlock().getLocation())) {
             return; // hors arène, comportement vanilla normal
         }
-        if (player.hasPermission("loyaltymobs.admin")) {
-            return; // les admins peuvent aménager librement l'arène
+
+        boolean itemCharge = plugin.getBuildBlockManager().estItemCharge(event.getItemInHand());
+
+        if (!player.hasPermission("loyaltymobs.admin")) {
+            // joueurs normaux : uniquement le bloc de charge dédié, sur un type autorisé
+            if (!itemCharge) {
+                event.setCancelled(true);
+                return;
+            }
+            if (!BlockRegistry.estAutorise(event.getBlock().getType())) {
+                event.setCancelled(true);
+                return;
+            }
         }
 
-        if (!plugin.getBuildBlockManager().estItemCharge(event.getItemInHand())) {
-            event.setCancelled(true);
-            return;
+        // Qu'il s'agisse d'un admin (qui peut aussi aménager librement l'arène avec n'importe
+        // quel bloc) ou d'un joueur normal : si c'est un bloc de charge posé avec l'item dédié,
+        // il doit être suivi et programmé pour disparaître après sa durée de vie.
+        if (itemCharge) {
+            plugin.getBuildBlockManager().enregistrerProprietaire(event.getBlock(), player.getUniqueId());
+            plugin.getBuildBlockManager().onBlocPose(player, event.getBlock());
         }
-
-        if (!BlockRegistry.estAutorise(event.getBlock().getType())) {
-            event.setCancelled(true);
-            return;
-        }
-
-        plugin.getBuildBlockManager().enregistrerProprietaire(event.getBlock(), player.getUniqueId());
-        plugin.getBuildBlockManager().onBlocPose(player, event.getBlock());
     }
 
     @EventHandler(priority = EventPriority.HIGH)

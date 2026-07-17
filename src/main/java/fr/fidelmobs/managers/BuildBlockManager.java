@@ -100,6 +100,8 @@ public class BuildBlockManager {
         BukkitTask ancienne = tachesRegen.remove(uuid);
         if (ancienne != null) ancienne.cancel();
 
+        long periode = Math.max(1, plugin.getConfig().getInt("arene.regen-bloc-secondes", 3)) * 20L;
+
         BukkitTask tache = new BukkitRunnable() {
             @Override
             public void run() {
@@ -117,7 +119,7 @@ public class BuildBlockManager {
                 // client qu'on n'aurait pas anticipée ailleurs.
                 resynchroniser(player);
             }
-        }.runTaskTimer(plugin, 20L, 60L); // 1re vérification après 1 seconde, puis toutes les 3 secondes
+        }.runTaskTimer(plugin, periode, periode);
 
         tachesRegen.put(uuid, tache);
     }
