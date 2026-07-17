@@ -56,8 +56,18 @@ public class ArenaProtectionListener implements Listener {
             joueursDansArene.add(player.getUniqueId());
             modeAvantArene.put(player.getUniqueId(), player.getGameMode());
             player.setGameMode(GameMode.SURVIVAL);
-            plugin.getKitManager().appliquerKit(player);
-            plugin.getBuildBlockManager().entrerEnArene(player);
+            try {
+                plugin.getKitManager().appliquerKit(player);
+            } catch (Exception e) {
+                plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                        "Échec de l'application du kit pour " + player.getName(), e);
+            }
+            try {
+                plugin.getBuildBlockManager().entrerEnArene(player);
+            } catch (Exception e) {
+                plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                        "Échec de la distribution des blocs pour " + player.getName(), e);
+            }
             plugin.getScoreboardManager().entrerEnArene(player);
             // Le changement de gamemode et les modifications d'inventaire dans le même tick
             // peuvent se désynchroniser côté client (le paquet de resync du gamemode écrase

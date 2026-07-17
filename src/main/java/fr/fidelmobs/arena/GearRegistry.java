@@ -86,6 +86,12 @@ public final class GearRegistry {
         int tier = tirerTier();
         boolean enchante = RANDOM.nextDouble() < CHANCE_ENCHANTE;
 
+        // Le stuff de base (cuir/bois, tier COMMUN) ne doit jamais s'obtenir "tel quel" à la
+        // roue : s'il est tiré sans enchantement, on force au moins un enchantement dessus.
+        if (tier == 0 && !enchante) {
+            enchante = true;
+        }
+
         Material material = switch (type) {
             case CASQUE -> CASQUES[tier];
             case PLASTRON -> PLASTRONS[tier];

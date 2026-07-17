@@ -111,10 +111,13 @@ public class BuildBlockManager {
                 int n = charges.getOrDefault(uuid, 0);
                 if (n < TAILLE_PACK) {
                     charges.put(uuid, n + 1);
-                    resynchroniser(player);
                 }
+                // On revalide systématiquement l'affichage à chaque passage (pas uniquement
+                // quand les charges augmentent) : garde-fou contre toute désynchronisation
+                // client qu'on n'aurait pas anticipée ailleurs.
+                resynchroniser(player);
             }
-        }.runTaskTimer(plugin, 60L, 60L); // toutes les 3 secondes (60 ticks)
+        }.runTaskTimer(plugin, 20L, 60L); // 1re vérification après 1 seconde, puis toutes les 3 secondes
 
         tachesRegen.put(uuid, tache);
     }
