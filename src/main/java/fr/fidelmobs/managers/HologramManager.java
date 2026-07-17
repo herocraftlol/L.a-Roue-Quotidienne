@@ -26,13 +26,37 @@ public class HologramManager {
 
     private final LoyaltyMobsPlugin plugin;
     private final List<ArmorStand> lignesActuelles = new ArrayList<>();
+    private Location emplacementActuel;
 
     public HologramManager(LoyaltyMobsPlugin plugin) {
         this.plugin = plugin;
     }
 
     public void invoquer(Location emplacement) {
-        retirer();
+        this.emplacementActuel = emplacement.clone();
+        reconstruire();
+    }
+
+    /**
+     * Reconstruit le hologramme à son emplacement mémorisé, si un hologramme est actif.
+     * À appeler après tout événement qui change kills/morts/K-D (mort en arène) pour que
+     * le classement affiché reste à jour sans qu'un admin ait besoin de relancer /classement.
+     */
+    public void actualiser() {
+        if (emplacementActuel == null) return;
+        reconstruire();
+    }
+
+    private void reconstruire() {
+        for (ArmorStand stand : lignesActuelles) {
+            if (stand != null && !stand.isDead()) {
+                stand.remove();
+            }
+        }
+        lignesActuelles.clear();
+
+        Location emplacement = emplacementActuel;
+        if (emplacement == null || emplacement.getWorld() == null) return;
 
         List<String> lignes = new ArrayList<>();
         lignes.add("§6§l✦ CLASSEMENT ARÈNE PVP ✦");
@@ -72,6 +96,7 @@ public class HologramManager {
             }
         }
         lignesActuelles.clear();
+        emplacementActuel = null;
     }
 
     @FunctionalInterface

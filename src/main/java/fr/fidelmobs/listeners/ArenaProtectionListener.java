@@ -244,6 +244,9 @@ public class ArenaProtectionListener implements Listener {
         }
 
         plugin.getScoreboardManager().enregistrerElimination(tueur, victime);
+        // Kills/morts/K-D viennent de changer : on rafraîchit l'hologramme de classement
+        // s'il est actif, pour qu'il reste à jour sans intervention manuelle.
+        plugin.getHologramManager().actualiser();
 
         // Le kit et les charges de blocs sont prêtés pour la durée du combat en arène :
         // ils ne doivent jamais finir en loot au sol suite à une mort (PvP ou chute dans le vide).

@@ -19,6 +19,8 @@ import java.util.UUID;
 
 public class RoueCommand implements CommandExecutor {
 
+    private static final String SEPARATEUR = "§8§m§l                                                            ";
+
     private final LoyaltyMobsPlugin plugin;
 
     public RoueCommand(LoyaltyMobsPlugin plugin) {
@@ -40,44 +42,52 @@ public class RoueCommand implements CommandExecutor {
             return true;
         }
 
-        player.sendMessage("§b=== Roue de la fidélité ===");
+        player.sendMessage(" ");
+        player.sendMessage(SEPARATEUR);
+        player.sendMessage("      §b§l✦ ROUE DE LA FIDÉLITÉ ✦");
+        player.sendMessage(SEPARATEUR);
+        player.sendMessage(" ");
 
-        // Un lancer de roue donne désormais une récompense de chaque catégorie
-        tirerMob(player, data, uuid);
-        tirerBloc(player, data, uuid);
-        tirerEquipement(player, data, uuid);
+        // Un lancer de roue donne une récompense de chaque catégorie
+        MobRarity r1 = tirerMob(player, data, uuid);
+        MobRarity r2 = tirerBloc(player, data, uuid);
+        MobRarity r3 = tirerEquipement(player, data, uuid);
+
+        player.sendMessage(" ");
+        player.sendMessage(SEPARATEUR);
+        player.sendMessage(" ");
 
         data.save(uuid);
-        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
+        jouerFanfare(player, meilleureRarete(r1, r2, r3));
         return true;
     }
 
-    private void tirerMob(Player player, PlayerDataManager data, UUID uuid) {
+    private MobRarity tirerMob(Player player, PlayerDataManager data, UUID uuid) {
         EntityType mob = MobRegistry.tirerMobAleatoire();
         MobRarity rarete = MobRegistry.getRarete(mob);
         data.ajouterMob(uuid, mob);
 
-        player.sendMessage("§fTu as obtenu un allié : " + rarete.getCouleur() + nomLisible(mob.name())
-                + " §7(" + rarete.getCouleur() + rarete.getLabel() + "§7)");
-        player.sendMessage("§7Utilise §f/armee §7pour voir toute ta collection.");
+        afficherLigne(player, "☠ Allié", rarete.getCouleur() + "§l" + nomLisible(mob.name()), rarete);
+        player.sendMessage("  §7Utilise §f/armee §7pour voir toute ta collection.");
+        return rarete;
     }
 
-    private void tirerBloc(Player player, PlayerDataManager data, UUID uuid) {
+    private MobRarity tirerBloc(Player player, PlayerDataManager data, UUID uuid) {
         Material bloc = BlockRegistry.tirerBlocAleatoire();
         MobRarity rarete = BlockRegistry.getRarete(bloc);
         boolean nouveau = !data.getBlocsDebloques(uuid).contains(bloc);
         data.debloquerBloc(uuid, bloc);
 
-        player.sendMessage("§fTu as obtenu un bloc de construction : " + rarete.getCouleur() + nomLisible(bloc.name())
-                + " §7(" + rarete.getCouleur() + rarete.getLabel() + "§7)");
+        afficherLigne(player, "▣ Bloc", rarete.getCouleur() + "§l" + nomLisible(bloc.name()), rarete);
         if (nouveau) {
-            player.sendMessage("§aNouveau bloc débloqué pour l'arène ! Utilise §f/bloc choisir " + bloc.name() + " §apour l'activer.");
+            player.sendMessage("  §aNouveau bloc débloqué ! Utilise §f/bloc choisir " + bloc.name() + " §apour l'activer.");
         } else {
-            player.sendMessage("§7Tu possédais déjà ce bloc.");
+            player.sendMessage("  §7Tu possédais déjà ce bloc.");
         }
+        return rarete;
     }
 
-    private void tirerEquipement(Player player, PlayerDataManager data, UUID uuid) {
+    private MobRarity tirerEquipement(Player player, PlayerDataManager data, UUID uuid) {
         ItemStack item = GearRegistry.genererObjetAleatoire();
         GearRegistry.TypeEquipement type = GearRegistry.getType(item);
         int rareteIndex = GearRegistry.getRarete(item);
@@ -86,7 +96,7 @@ public class RoueCommand implements CommandExecutor {
         int index = data.ajouterEquipement(uuid, item);
 
         String nom = item.getItemMeta().hasDisplayName() ? item.getItemMeta().getDisplayName() : item.getType().name();
-        player.sendMessage("§fTu as obtenu un équipement : " + nom + " §7(" + rarete.getCouleur() + rarete.getLabel() + "§7)");
+        afficherLigne(player, "⚔ Équip", "§l" + nom, rarete);
 
         if (type != null) {
             int indexActuel = data.getIndexEquipe(uuid, type.slot);
@@ -95,10 +105,48 @@ public class RoueCommand implements CommandExecutor {
 
             if (indexActuel < 0 || rareteIndex >= rareteActuelle) {
                 data.setIndexEquipe(uuid, type.slot, index);
-                player.sendMessage("§aÉquipé automatiquement !");
+                player.sendMessage("  §aÉquipé automatiquement !");
             } else {
-                player.sendMessage("§7Utilise §f/equipement liste §7et §f/equipement equiper §7pour le porter à la place de ton équipement actuel.");
+                player.sendMessage("  §7Utilise §f/equipement liste §7et §f/equipement equiper §7pour le porter à la place.");
             }
+        }
+        return rarete;
+    }
+
+    /**
+     * Ligne de récompense uniforme : puce et cadre colorés selon la rareté, pour que les
+     * meilleurs tirages sautent immédiatement aux yeux dans le chat.
+     */
+    private void afficherLigne(Player player, String categorie, String nomColore, MobRarity rarete) {
+        String c = rarete.getCouleur();
+        player.sendMessage(c + "§l▸ " + "§8[" + c + categorie + "§8] " + nomColore
+                + " §8« " + c + rarete.getLabel() + "§8 »");
+    }
+
+    private MobRarity meilleureRarete(MobRarity... raretes) {
+        MobRarity meilleure = MobRarity.COMMUN;
+        for (MobRarity r : raretes) {
+            if (r.ordinal() > meilleure.ordinal()) meilleure = r;
+        }
+        return meilleure;
+    }
+
+    /**
+     * Petit effet sonore/visuel qui monte en intensité avec la meilleure rareté obtenue
+     * lors du tirage, pour rendre les gros coups bien plus voyants qu'un simple message.
+     */
+    private void jouerFanfare(Player player, MobRarity meilleure) {
+        switch (meilleure) {
+            case LEGENDAIRE -> {
+                player.sendTitle(meilleure.getCouleur() + "§l★ LÉGENDAIRE ★", "§eQuelle chance !", 5, 60, 15);
+                player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
+            }
+            case EPIQUE -> {
+                player.sendTitle(meilleure.getCouleur() + "§l✦ Épique ✦", "", 5, 40, 10);
+                player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1f, 0.8f);
+            }
+            case RARE -> player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.7f, 1.3f);
+            default -> player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
         }
     }
 
