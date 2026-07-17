@@ -59,6 +59,17 @@ public class ArenaProtectionListener implements Listener {
             plugin.getKitManager().appliquerKit(player);
             plugin.getBuildBlockManager().entrerEnArene(player);
             plugin.getScoreboardManager().entrerEnArene(player);
+            // Le changement de gamemode et les modifications d'inventaire dans le même tick
+            // peuvent se désynchroniser côté client (le paquet de resync du gamemode écrase
+            // parfois un slot tout juste posé) : on force un renvoi complet de l'inventaire,
+            // puis on réapplique une seconde fois au tick suivant par sécurité.
+            player.updateInventory();
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                if (!player.isOnline() || !joueursDansArene.contains(player.getUniqueId())) return;
+                plugin.getKitManager().appliquerKit(player);
+                plugin.getBuildBlockManager().resynchroniser(player);
+                player.updateInventory();
+            });
             player.sendMessage("§c§lVous entrez dans l'arène PvP !");
         } else if (!estDedans && etaitDedans) {
             joueursDansArene.remove(player.getUniqueId());
@@ -69,6 +80,7 @@ public class ArenaProtectionListener implements Listener {
             plugin.getKitManager().retirerKit(player);
             plugin.getBuildBlockManager().sortirDeArene(player);
             plugin.getScoreboardManager().sortirDeArene(player);
+            player.updateInventory();
             player.sendMessage("§7Vous quittez l'arène PvP.");
         }
     }

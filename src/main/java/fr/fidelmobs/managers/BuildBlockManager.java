@@ -21,7 +21,7 @@ import java.util.UUID;
 public class BuildBlockManager {
 
     public static final int TAILLE_PACK = 32;
-    public static final int SLOT_BLOC = 8; // dernier slot de la barre d'accès rapide
+    public static final int SLOT_BLOC = 1; // 2e slot de la barre d'accès rapide (index 1)
 
     private final LoyaltyMobsPlugin plugin;
     private final Map<UUID, Integer> charges = new HashMap<>();
@@ -86,7 +86,7 @@ public class BuildBlockManager {
         }
     }
 
-    private void resynchroniser(Player player) {
+    public void resynchroniser(Player player) {
         int n = charges.getOrDefault(player.getUniqueId(), 0);
         if (n <= 0) {
             player.getInventory().setItem(SLOT_BLOC, null);
