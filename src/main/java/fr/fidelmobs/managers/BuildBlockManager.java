@@ -21,7 +21,6 @@ import java.util.UUID;
 public class BuildBlockManager {
 
     public static final int TAILLE_PACK = 32;
-    public static final int SLOT_BLOC = 1; // 2e slot de la barre d'accès rapide (index 1)
 
     private final LoyaltyMobsPlugin plugin;
     private final Map<UUID, Integer> charges = new HashMap<>();
@@ -81,18 +80,20 @@ public class BuildBlockManager {
         BukkitTask tache = tachesRegen.remove(uuid);
         if (tache != null) tache.cancel();
         charges.remove(uuid);
-        if (player.getInventory().getItem(SLOT_BLOC) != null && estItemCharge(player.getInventory().getItem(SLOT_BLOC))) {
-            player.getInventory().setItem(SLOT_BLOC, null);
+        if (estItemCharge(player.getInventory().getItemInOffHand())) {
+            player.getInventory().setItemInOffHand(null);
         }
     }
 
     public void resynchroniser(Player player) {
         int n = charges.getOrDefault(player.getUniqueId(), 0);
         if (n <= 0) {
-            player.getInventory().setItem(SLOT_BLOC, null);
+            if (estItemCharge(player.getInventory().getItemInOffHand())) {
+                player.getInventory().setItemInOffHand(null);
+            }
             return;
         }
-        player.getInventory().setItem(SLOT_BLOC, creerItemBloc(blocActifOuDefaut(player.getUniqueId()), n));
+        player.getInventory().setItemInOffHand(creerItemBloc(blocActifOuDefaut(player.getUniqueId()), n));
     }
 
     private void demarrerRegen(Player player) {
@@ -100,7 +101,7 @@ public class BuildBlockManager {
         BukkitTask ancienne = tachesRegen.remove(uuid);
         if (ancienne != null) ancienne.cancel();
 
-        long periode = Math.max(1, plugin.getConfig().getInt("arene.regen-bloc-secondes", 3)) * 20L;
+        long periode = Math.max(1, plugin.getConfig().getInt("arene.regen-bloc-secondes", 1)) * 20L;
 
         BukkitTask tache = new BukkitRunnable() {
             @Override

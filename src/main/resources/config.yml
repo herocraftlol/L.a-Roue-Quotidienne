@@ -21,7 +21,7 @@ arene:
   duree-vie-bloc-secondes: 10
 
   # Intervalle entre chaque recharge d'un bloc de construction (secondes)
-  regen-bloc-secondes: 3
+  regen-bloc-secondes: 1
 
 # Duree de vie maximale d'un mob allie invoque en secondes (0 = illimite tant qu'il ne meurt pas)
 duree-vie-allie-secondes: 600

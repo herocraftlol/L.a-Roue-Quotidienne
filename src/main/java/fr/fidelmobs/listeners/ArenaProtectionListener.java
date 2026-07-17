@@ -1,24 +1,32 @@
 package fr.fidelmobs.listeners;
 
+import fr.fidelmobs.Cles;
 import fr.fidelmobs.LoyaltyMobsPlugin;
 import fr.fidelmobs.arena.ArenaManager;
 import fr.fidelmobs.arena.BlockRegistry;
 import fr.fidelmobs.data.PlayerDataManager;
+import fr.fidelmobs.managers.InvocationInventoryHolder;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -68,6 +76,7 @@ public class ArenaProtectionListener implements Listener {
                 plugin.getLogger().log(java.util.logging.Level.SEVERE,
                         "Échec de la distribution des blocs pour " + player.getName(), e);
             }
+            plugin.getInvocationManager().donnerItem(player);
             plugin.getScoreboardManager().entrerEnArene(player);
             // Le changement de gamemode et les modifications d'inventaire dans le même tick
             // peuvent se désynchroniser côté client (le paquet de resync du gamemode écrase
@@ -78,6 +87,7 @@ public class ArenaProtectionListener implements Listener {
                 if (!player.isOnline() || !joueursDansArene.contains(player.getUniqueId())) return;
                 plugin.getKitManager().appliquerKit(player);
                 plugin.getBuildBlockManager().resynchroniser(player);
+                plugin.getInvocationManager().donnerItem(player);
                 player.updateInventory();
             });
             player.sendMessage("§c§lVous entrez dans l'arène PvP !");
@@ -89,6 +99,7 @@ public class ArenaProtectionListener implements Listener {
             }
             plugin.getKitManager().retirerKit(player);
             plugin.getBuildBlockManager().sortirDeArene(player);
+            plugin.getInvocationManager().retirerItem(player);
             plugin.getScoreboardManager().sortirDeArene(player);
             player.updateInventory();
             player.sendMessage("§7Vous quittez l'arène PvP.");
@@ -189,17 +200,50 @@ public class ArenaProtectionListener implements Listener {
             return; // hors arène, comportement vanilla normal
         }
         if (player.hasPermission("loyaltymobs.admin")) {
-            return; // les admins peuvent aménager librement l'arène
+            return; // seuls les admins peuvent éditer l'arène (terrain ou blocs posés)
         }
 
-        if (plugin.getBuildBlockManager().estProprietaire(event.getBlock(), player.getUniqueId())) {
-            // le joueur casse son propre bloc posé : autorisé, pas de drop
-            event.setDropItems(false);
-            plugin.getBuildBlockManager().retirerTracking(event.getBlock());
-        } else {
-            // impossible de casser le terrain ou les blocs des autres en arène
-            event.setCancelled(true);
+        // Personne ne peut casser quoi que ce soit à la main dans l'arène : ni le terrain déjà
+        // présent, ni un bloc de construction qu'on vient de poser soi-même — ces derniers
+        // disparaissent uniquement tout seuls, après leur durée de vie.
+        event.setCancelled(true);
+    }
+
+    @EventHandler
+    public void onInteragirInvocation(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND) return; // évite un double déclenchement main + main secondaire
+        Action action = event.getAction();
+        if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) return;
+
+        Player player = event.getPlayer();
+        if (!estDansArene(player)) return;
+        if (!plugin.getInvocationManager().estItemInvocation(event.getItem())) return;
+
+        event.setCancelled(true);
+        plugin.getInvocationManager().ouvrirMenu(player);
+    }
+
+    @EventHandler
+    public void onClicMenuInvocation(InventoryClickEvent event) {
+        if (!(event.getInventory().getHolder() instanceof InvocationInventoryHolder)) return;
+        event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+
+        ItemStack clique = event.getCurrentItem();
+        if (clique == null || !clique.hasItemMeta()) return;
+
+        String typeName = clique.getItemMeta().getPersistentDataContainer().get(Cles.INVOCATION_TYPE, PersistentDataType.STRING);
+        if (typeName == null) return;
+
+        EntityType type;
+        try {
+            type = EntityType.valueOf(typeName);
+        } catch (IllegalArgumentException e) {
+            return;
         }
+
+        player.closeInventory();
+        plugin.getInvocationManager().invoquerDepuisMenu(player, type);
     }
 
     @EventHandler
@@ -207,9 +251,11 @@ public class ArenaProtectionListener implements Listener {
         Player player = event.getPlayer();
         if (!estDansArene(player)) return;
 
-        boolean itemDuKit = plugin.getKitManager().estKit(event.getItemDrop().getItemStack());
-        boolean itemCharge = plugin.getBuildBlockManager().estItemCharge(event.getItemDrop().getItemStack());
-        if (itemDuKit || itemCharge) {
+        ItemStack drop = event.getItemDrop().getItemStack();
+        boolean itemDuKit = plugin.getKitManager().estKit(drop);
+        boolean itemCharge = plugin.getBuildBlockManager().estItemCharge(drop);
+        boolean itemInvocation = plugin.getInvocationManager().estItemInvocation(drop);
+        if (itemDuKit || itemCharge || itemInvocation) {
             event.setCancelled(true);
         }
     }
@@ -220,9 +266,11 @@ public class ArenaProtectionListener implements Listener {
         if (!estDansArene(player)) return;
 
         boolean clicSurKit = event.getCurrentItem() != null && (plugin.getKitManager().estKit(event.getCurrentItem())
-                || plugin.getBuildBlockManager().estItemCharge(event.getCurrentItem()));
+                || plugin.getBuildBlockManager().estItemCharge(event.getCurrentItem())
+                || plugin.getInvocationManager().estItemInvocation(event.getCurrentItem()));
         boolean curseurKit = event.getCursor() != null && (plugin.getKitManager().estKit(event.getCursor())
-                || plugin.getBuildBlockManager().estItemCharge(event.getCursor()));
+                || plugin.getBuildBlockManager().estItemCharge(event.getCursor())
+                || plugin.getInvocationManager().estItemInvocation(event.getCursor()));
 
         if (clicSurKit || curseurKit) {
             event.setCancelled(true);
@@ -248,10 +296,12 @@ public class ArenaProtectionListener implements Listener {
         // s'il est actif, pour qu'il reste à jour sans intervention manuelle.
         plugin.getHologramManager().actualiser();
 
-        // Le kit et les charges de blocs sont prêtés pour la durée du combat en arène :
-        // ils ne doivent jamais finir en loot au sol suite à une mort (PvP ou chute dans le vide).
+        // Le kit, les charges de blocs et l'item d'invocation sont prêtés pour la durée du
+        // combat en arène : ils ne doivent jamais finir en loot au sol suite à une mort
+        // (PvP ou chute dans le vide).
         event.getDrops().removeIf(item -> plugin.getKitManager().estKit(item)
-                || plugin.getBuildBlockManager().estItemCharge(item));
+                || plugin.getBuildBlockManager().estItemCharge(item)
+                || plugin.getInvocationManager().estItemInvocation(item));
     }
 
     @EventHandler

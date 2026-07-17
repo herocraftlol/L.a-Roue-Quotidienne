@@ -16,6 +16,7 @@ import fr.fidelmobs.listeners.LoginListener;
 import fr.fidelmobs.managers.ArenaScoreboardManager;
 import fr.fidelmobs.managers.BuildBlockManager;
 import fr.fidelmobs.managers.HologramManager;
+import fr.fidelmobs.managers.InvocationManager;
 import fr.fidelmobs.managers.KitManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -29,6 +30,7 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
     private ArenaScoreboardManager scoreboardManager;
     private ArenaProtectionListener arenaProtectionListener;
     private HologramManager hologramManager;
+    private InvocationManager invocationManager;
 
     @Override
     public void onEnable() {
@@ -42,6 +44,7 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
         this.scoreboardManager = new ArenaScoreboardManager(this);
         this.arenaProtectionListener = new ArenaProtectionListener(this);
         this.hologramManager = new HologramManager(this);
+        this.invocationManager = new InvocationManager(this);
 
         getServer().getPluginManager().registerEvents(new LoginListener(this), this);
         getServer().getPluginManager().registerEvents(allyListener, this);
@@ -109,5 +112,9 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
 
     public HologramManager getHologramManager() {
         return hologramManager;
+    }
+
+    public InvocationManager getInvocationManager() {
+        return invocationManager;
     }
 }
