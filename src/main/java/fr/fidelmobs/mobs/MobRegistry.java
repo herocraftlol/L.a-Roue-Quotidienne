@@ -62,7 +62,7 @@ public final class MobRegistry {
 
     /**
      * Tire un mob au hasard en respectant les poids de chaque rareté,
-     * puis un mob au hasard parmi ceux de la rareté tirée.
+     * puis un mob au hasard parmi ceux de la rareité tirée.
      */
     public static EntityType tirerMobAleatoire() {
         int poidsTotal = 0;

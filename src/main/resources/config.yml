@@ -23,5 +23,43 @@ arene:
   # Intervalle entre chaque recharge d'un bloc de construction (secondes)
   regen-bloc-secondes: 1
 
+  # Temps de recharge avant qu'une unité de mob invoquée puisse resservir (secondes).
+  # Le mob n'est plus jamais perdu : posséder plusieurs fois le même permet d'en
+  # invoquer plusieurs en simultané (chaque unité a son propre temps de recharge).
+  invocation-cooldown-secondes: 3600
+
+  # Points de fidélité PvP gagnés à chaque kill en arène
+  points-par-kill: 15
+
+  # Coût en points d'un ticket de roue acheté via /points acheter
+  cout-ticket-points: 200
+
 # Duree de vie maximale d'un mob allie invoque en secondes (0 = illimite tant qu'il ne meurt pas)
 duree-vie-allie-secondes: 600
+
+# =========================================================
+#  Boutique en argent reel (achat de tickets de roue sur le site web)
+#  ENTIEREMENT OPTIONNEL : tout le reste du plugin fonctionne sans MySQL.
+#  Voir website-node/README.md pour l'installation complete du site.
+# =========================================================
+boutique:
+  enabled: false
+
+  # URL publique de la boutique en ligne, utilisee par /acheterticket pour envoyer un lien
+  # cliquable au joueur (doit etre l'URL PUBLIQUE via ton reverse-proxy, pas une IP interne)
+  url: "https://tonsite.fr/boutique-tickets"
+
+  # Intervalle (en secondes) auquel le plugin verifie les nouveaux achats de tickets
+  # faits depuis le site web (table pending_ticket_grants)
+  sync-interval-seconds: 15
+
+mysql:
+  # Base MySQL partagee avec le micro-service du site web (website-node/).
+  # N'est utilisee QUE si boutique.enabled est a true ci-dessus.
+  host: "127.0.0.1"
+  port: 3306
+  database: "loyaltymobs_shop"
+  user: "loyaltymobs_user"
+  password: "CHANGE_ME"
+  pool-size: 4
+  useSSL: false

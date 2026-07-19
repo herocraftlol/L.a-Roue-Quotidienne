@@ -47,9 +47,13 @@ public class ArmeeCommand implements CommandExecutor {
                     EntityType type = entry.getKey();
                     int nombre = entry.getValue();
                     MobRarity rarete = MobRegistry.getRarete(type);
+                    int disponibles = plugin.getPlayerDataManager().getUnitesDisponibles(uuid, type);
+                    String dispo = disponibles == nombre ? "§a(toutes disponibles)"
+                            : "§e(" + disponibles + "/" + nombre + " disponibles)";
                     player.sendMessage(rarete.getCouleur() + "x" + nombre + " §f" + nomLisible(type)
-                            + " §7(" + rarete.getCouleur() + rarete.getLabel() + "§7)");
+                            + " §7(" + rarete.getCouleur() + rarete.getLabel() + "§7) " + dispo);
                 });
+        player.sendMessage("§7Chaque unité utilisée recharge en 1h. §f/invoquer <mob> §7pour en invoquer une.");
 
         return true;
     }

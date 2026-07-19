@@ -248,4 +248,80 @@ public class PlayerDataManager {
         }
         return resultat;
     }
+
+    // ---- Cooldowns d'invocation (collection permanente : un mob n'est plus jamais perdu,
+    // mais chaque unité possédée ne peut être invoquée qu'une fois par heure) ----
+
+    private String cheminCooldown(EntityType type) {
+        return "invocation_cooldowns." + type.name();
+    }
+
+    /**
+     * Timestamps (epoch millis) auxquels chaque unité actuellement "en recharge" redevient
+     * disponible. Purge automatiquement les entrées expirées avant de les retourner.
+     */
+    public List<Long> getCooldownsActifs(UUID uuid, EntityType type) {
+        List<Long> bruts = get(uuid).getLongList(cheminCooldown(type));
+        long maintenant = System.currentTimeMillis();
+        List<Long> actifs = new ArrayList<>();
+        for (long t : bruts) {
+            if (t > maintenant) actifs.add(t);
+        }
+        if (actifs.size() != bruts.size()) {
+            get(uuid).set(cheminCooldown(type), actifs);
+        }
+        return actifs;
+    }
+
+    /**
+     * Nombre d'unités de ce mob actuellement disponibles à l'invocation (possédées moins
+     * celles encore en recharge).
+     */
+    public int getUnitesDisponibles(UUID uuid, EntityType type) {
+        int possedees = getNombreMob(uuid, type);
+        int enRecharge = getCooldownsActifs(uuid, type).size();
+        return Math.max(0, possedees - enRecharge);
+    }
+
+    /**
+     * Timestamp (epoch millis) auquel la prochaine unité redeviendra disponible,
+     * ou -1 si aucune n'est actuellement en recharge.
+     */
+    public long getProchaineDisponibilite(UUID uuid, EntityType type) {
+        long minimum = -1;
+        for (long t : getCooldownsActifs(uuid, type)) {
+            if (minimum == -1 || t < minimum) minimum = t;
+        }
+        return minimum;
+    }
+
+    /**
+     * Marque une unité comme utilisée : elle repart pour un temps de recharge avant de
+     * redevenir disponible. Ne retire JAMAIS le mob de la collection (système permanent).
+     */
+    public void utiliserUniteMob(UUID uuid, EntityType type, long dureeCooldownMs) {
+        List<Long> actuels = new ArrayList<>(getCooldownsActifs(uuid, type));
+        actuels.add(System.currentTimeMillis() + dureeCooldownMs);
+        get(uuid).set(cheminCooldown(type), actuels);
+    }
+
+    // ---- Points de fidélité PvP (gagnés à chaque kill, échangeables contre des tickets) ----
+
+    public int getPoints(UUID uuid) {
+        return get(uuid).getInt("points", 0);
+    }
+
+    public void ajouterPoints(UUID uuid, int montant) {
+        get(uuid).set("points", getPoints(uuid) + montant);
+    }
+
+    /**
+     * Dépense des points si le solde est suffisant. Ne modifie rien et renvoie false sinon.
+     */
+    public boolean retirerPoints(UUID uuid, int montant) {
+        int solde = getPoints(uuid);
+        if (solde < montant) return false;
+        get(uuid).set("points", solde - montant);
+        return true;
+    }
 }
