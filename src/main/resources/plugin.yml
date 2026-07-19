@@ -1,5 +1,5 @@
 name: LoyaltyMobs
-version: '1.0.0'
+version: '1.0.12'
 main: fr.fidelmobs.LoyaltyMobsPlugin
 api-version: '1.21'
 author: Toi
@@ -32,6 +32,12 @@ commands:
     description: "[Admin] Invoque un hologramme de classement PvP (top kills, top morts, meilleurs K/D) a ta position."
     usage: /classement [retirer]
     permission: loyaltymobs.admin
+  points:
+    description: Affiche tes points de fidelite PvP et permet d'en echanger contre des tickets de roue.
+    usage: /points [acheter]
+  acheterticket:
+    description: Donne un lien vers la boutique en ligne pour acheter des tickets de roue avec de l'argent reel.
+    usage: /acheterticket
 
 permissions:
   loyaltymobs.use:

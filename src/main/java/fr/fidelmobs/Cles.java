@@ -14,4 +14,6 @@ public final class Cles {
     public static final NamespacedKey BLOC_POSE = new NamespacedKey("fidelmobs", "bloc_pose");
     public static final NamespacedKey INVOCATION = new NamespacedKey("fidelmobs", "invocation");
     public static final NamespacedKey INVOCATION_TYPE = new NamespacedKey("fidelmobs", "invocation_type");
+    public static final NamespacedKey BLOC_SELECTEUR = new NamespacedKey("fidelmobs", "bloc_selecteur");
+    public static final NamespacedKey BLOC_CHOIX = new NamespacedKey("fidelmobs", "bloc_choix");
 }

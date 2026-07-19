@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -89,23 +90,39 @@ public class InvocationManager {
         holder.setInventory(inv);
 
         for (EntityType type : tries) {
-            inv.addItem(creerIcone(type, collection.get(type), MobRegistry.getRarete(type)));
+            inv.addItem(creerIcone(player, type, collection.get(type), MobRegistry.getRarete(type)));
         }
 
         player.openInventory(inv);
     }
 
     /**
-     * Traite le clic sur une icône du menu : consomme un allié de la collection et l'invoque
-     * à côté du joueur. Ne fait rien si la collection a changé entre-temps (message d'échec).
+     * Invoque une unité disponible du mob demandé, si le joueur en possède au moins une et
+     * qu'au moins une n'est pas en recharge. Le mob n'est JAMAIS retiré de la collection
+     * (système permanent) : l'unité utilisée part simplement en recharge pendant la durée
+     * configurée (1h par défaut) avant de redevenir invocable.
      */
-    public void invoquerDepuisMenu(Player player, EntityType type) {
+    public void invoquer(Player player, EntityType type) {
         PlayerDataManager data = plugin.getPlayerDataManager();
-        if (!data.retirerMob(player.getUniqueId(), type)) {
-            player.sendMessage("§cTu ne possèdes plus de " + nomLisible(type) + ".");
+        UUID uuid = player.getUniqueId();
+
+        if (data.getNombreMob(uuid, type) <= 0) {
+            player.sendMessage("§cTu ne possèdes aucun " + nomLisible(type) + " dans ta collection.");
             return;
         }
-        data.save(player.getUniqueId());
+
+        int disponibles = data.getUnitesDisponibles(uuid, type);
+        if (disponibles <= 0) {
+            long prochaine = data.getProchaineDisponibilite(uuid, type);
+            String attente = prochaine > 0 ? formatDuree(prochaine - System.currentTimeMillis()) : "bientôt";
+            player.sendMessage("§cToutes tes unités de " + nomLisible(type) + " sont en recharge. "
+                    + "§7Prochaine disponible dans §e" + attente + "§7.");
+            return;
+        }
+
+        long cooldownMs = Math.max(1, plugin.getConfig().getInt("arene.invocation-cooldown-secondes", 3600)) * 1000L;
+        data.utiliserUniteMob(uuid, type, cooldownMs);
+        data.save(uuid);
 
         Location spawnLoc = SpawnUtils.trouverPositionSpawnValide(player);
         Entity entite = player.getWorld().spawnEntity(spawnLoc, type);
@@ -117,22 +134,45 @@ public class InvocationManager {
             plugin.getAllyListener().enregistrerAllie(mob, player);
         }
 
-        player.sendMessage("§aTu as invoqué " + rarete.getCouleur() + nomLisible(type) + " §aà tes côtés !");
+        int restantes = disponibles - 1;
+        player.sendMessage("§aTu as invoqué " + rarete.getCouleur() + nomLisible(type) + " §aà tes côtés ! §7("
+                + restantes + " autre(s) disponible(s) tout de suite, celle-ci en recharge 1h.)");
     }
 
-    private ItemStack creerIcone(EntityType type, int nombre, MobRarity rarete) {
+    private ItemStack creerIcone(Player player, EntityType type, int nombre, MobRarity rarete) {
+        PlayerDataManager data = plugin.getPlayerDataManager();
+        int disponibles = data.getUnitesDisponibles(player.getUniqueId(), type);
+
         ItemStack icone = new ItemStack(spawnEggPour(type));
         ItemMeta meta = icone.getItemMeta();
         meta.setDisplayName(rarete.getCouleur() + "§l" + nomLisible(type));
         List<String> lore = new ArrayList<>();
-        lore.add("§7Quantité : " + rarete.getCouleur() + nombre);
+        lore.add("§7Possédés : " + rarete.getCouleur() + nombre);
         lore.add("§7Rareté : " + rarete.getCouleur() + rarete.getLabel());
         lore.add("");
-        lore.add("§eClique pour invoquer !");
+        if (disponibles > 0) {
+            lore.add("§aDisponibles : " + disponibles + "/" + nombre);
+            lore.add("§eClique pour invoquer !");
+        } else {
+            long prochaine = data.getProchaineDisponibilite(player.getUniqueId(), type);
+            String attente = prochaine > 0 ? formatDuree(prochaine - System.currentTimeMillis()) : "bientôt";
+            lore.add("§cToutes en recharge");
+            lore.add("§7Prochaine dans " + attente);
+        }
         meta.setLore(lore);
         meta.getPersistentDataContainer().set(Cles.INVOCATION_TYPE, PersistentDataType.STRING, type.name());
         icone.setItemMeta(meta);
         return icone;
+    }
+
+    private String formatDuree(long ms) {
+        long totalSecondes = Math.max(0, ms / 1000);
+        long minutes = totalSecondes / 60;
+        long secondes = totalSecondes % 60;
+        if (minutes > 0) {
+            return minutes + " min " + secondes + " s";
+        }
+        return secondes + " s";
     }
 
     private Material spawnEggPour(EntityType type) {

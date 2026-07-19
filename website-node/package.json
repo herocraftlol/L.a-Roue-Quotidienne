@@ -1,0 +1,18 @@
+{
+  "name": "loyaltymobs-ticket-shop",
+  "version": "1.0.0",
+  "description": "Boutique en ligne pour acheter des tickets de roue LoyaltyMobs avec de l'argent reel (Stripe + MySQL, credite par le plugin Paper via pending_ticket_grants)",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "mysql2": "^3.11.0",
+    "dotenv": "^16.4.5",
+    "stripe": "^16.2.0",
+    "node-fetch": "^2.7.0",
+    "cors": "^2.8.5"
+  }
+}
