@@ -45,6 +45,10 @@ public class EquipementCommand implements CommandExecutor {
                 String nom = item.hasItemMeta() && item.getItemMeta().hasDisplayName()
                         ? item.getItemMeta().getDisplayName() : item.getType().name();
                 player.sendMessage("§7#" + i + " " + nom + (equipe ? " §a(équipé)" : ""));
+                String enchants = GearRegistry.formatEnchantements(item);
+                if (enchants != null) {
+                    player.sendMessage("     §8✦ §7" + enchants);
+                }
             }
             player.sendMessage("§7Utilise §f/equipement equiper <numéro> §7pour équiper une pièce.");
             return true;

@@ -73,7 +73,7 @@ public class RoueCommand implements CommandExecutor {
     }
 
     private MobRarity tirerBloc(Player player, PlayerDataManager data, UUID uuid) {
-        Material bloc = BlockRegistry.tirerBlocAleatoire();
+        Material bloc = BlockRegistry.tirerBlocAleatoire(data.getBlocsDebloques(uuid));
         MobRarity rarete = BlockRegistry.getRarete(bloc);
         boolean nouveau = !data.getBlocsDebloques(uuid).contains(bloc);
         data.debloquerBloc(uuid, bloc);

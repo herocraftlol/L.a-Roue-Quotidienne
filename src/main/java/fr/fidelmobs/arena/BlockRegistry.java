@@ -42,6 +42,46 @@ public final class BlockRegistry {
         return RARETE_PAR_BLOC.containsKey(m);
     }
 
+    /**
+     * Tire un bloc au hasard en excluant, tant que c'est possible, les blocs déjà débloqués
+     * par le joueur : la roue ne renvoie un doublon que si la collection est déjà complète.
+     * La pondération par rareté est recalculée sur les seuls paliers où il reste au moins un
+     * bloc non débloqué, pour que le tirage reste cohérent même en fin de collection.
+     */
+    public static Material tirerBlocAleatoire(java.util.Set<Material> possedes) {
+        Map<MobRarity, List<Material>> disponiblesParRarete = new java.util.EnumMap<>(MobRarity.class);
+        int poidsTotal = 0;
+        for (MobRarity r : MobRarity.values()) {
+            List<Material> dispo = RARETE_PAR_BLOC.entrySet().stream()
+                    .filter(e -> e.getValue() == r && !possedes.contains(e.getKey()))
+                    .map(Map.Entry::getKey)
+                    .toList();
+            if (!dispo.isEmpty()) {
+                disponiblesParRarete.put(r, dispo);
+                poidsTotal += r.getPoids();
+            }
+        }
+
+        if (disponiblesParRarete.isEmpty()) {
+            // Collection déjà complète : on retombe sur un tirage classique, doublon inévitable.
+            return tirerBlocAleatoire();
+        }
+
+        int tirage = RANDOM.nextInt(poidsTotal);
+        int cumul = 0;
+        for (Map.Entry<MobRarity, List<Material>> entree : disponiblesParRarete.entrySet()) {
+            cumul += entree.getKey().getPoids();
+            if (tirage < cumul) {
+                List<Material> candidats = entree.getValue();
+                return candidats.get(RANDOM.nextInt(candidats.size()));
+            }
+        }
+
+        // Filet de sécurité (ne devrait pas arriver vu le cumul ci-dessus).
+        List<Material> tousDispo = disponiblesParRarete.values().stream().flatMap(List::stream).toList();
+        return tousDispo.get(RANDOM.nextInt(tousDispo.size()));
+    }
+
     public static Material tirerBlocAleatoire() {
         int poidsTotal = 0;
         for (MobRarity r : MobRarity.values()) poidsTotal += r.getPoids();

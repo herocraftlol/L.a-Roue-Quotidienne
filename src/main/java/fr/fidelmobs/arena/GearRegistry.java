@@ -155,4 +155,33 @@ public final class GearRegistry {
             case ARME -> Material.WOODEN_SWORD;
         };
     }
+
+    /**
+     * Formatte les enchantements d'un objet en une liste lisible ("Tranchant III, Solidité II"),
+     * pour affichage dans /equipement liste. Retourne null si l'objet n'est pas enchanté.
+     */
+    public static String formatEnchantements(ItemStack item) {
+        if (item == null || !item.hasItemMeta() || item.getItemMeta().getEnchants().isEmpty()) {
+            return null;
+        }
+        return item.getItemMeta().getEnchants().entrySet().stream()
+                .map(e -> nomEnchant(e.getKey()) + " " + chiffreRomain(e.getValue()))
+                .collect(java.util.stream.Collectors.joining(", "));
+    }
+
+    private static String nomEnchant(Enchantment ench) {
+        if (ench.equals(Enchantment.SHARPNESS)) return "Tranchant";
+        if (ench.equals(Enchantment.KNOCKBACK)) return "Recul";
+        if (ench.equals(Enchantment.FIRE_ASPECT)) return "Aspect du feu";
+        if (ench.equals(Enchantment.UNBREAKING)) return "Solidité";
+        if (ench.equals(Enchantment.PROTECTION)) return "Protection";
+        if (ench.equals(Enchantment.THORNS)) return "Épines";
+        String brut = ench.getKey().getKey().toLowerCase().replace('_', ' ');
+        return brut.substring(0, 1).toUpperCase() + brut.substring(1);
+    }
+
+    private static String chiffreRomain(int niveau) {
+        String[] romains = {"", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"};
+        return (niveau >= 0 && niveau < romains.length) ? romains[niveau] : String.valueOf(niveau);
+    }
 }
