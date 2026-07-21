@@ -21,6 +21,9 @@ import java.util.UUID;
 public class BuildBlockManager {
 
     public static final int TAILLE_PACK = 32;
+    // 3e slot de la barre d'accès rapide : miroir de la offhand, permet de poser des blocs
+    // de charge directement depuis la main principale sans jongler avec la touche F.
+    public static final int SLOT_MIROIR = 2;
 
     private final LoyaltyMobsPlugin plugin;
     private final Map<UUID, Integer> charges = new HashMap<>();
@@ -83,17 +86,30 @@ public class BuildBlockManager {
         if (estItemCharge(player.getInventory().getItemInOffHand())) {
             player.getInventory().setItemInOffHand(null);
         }
+        if (estItemCharge(player.getInventory().getItem(SLOT_MIROIR))) {
+            player.getInventory().setItem(SLOT_MIROIR, null);
+        }
     }
 
+    /**
+     * Réaligne à la fois la offhand et son miroir (3e slot de hotbar) sur le nombre de
+     * charges actuel : les deux affichent toujours le même bloc et la même quantité, et
+     * la pose depuis l'un ou l'autre consomme la même réserve partagée.
+     */
     public void resynchroniser(Player player) {
         int n = charges.getOrDefault(player.getUniqueId(), 0);
         if (n <= 0) {
             if (estItemCharge(player.getInventory().getItemInOffHand())) {
                 player.getInventory().setItemInOffHand(null);
             }
+            if (estItemCharge(player.getInventory().getItem(SLOT_MIROIR))) {
+                player.getInventory().setItem(SLOT_MIROIR, null);
+            }
             return;
         }
-        player.getInventory().setItemInOffHand(creerItemBloc(blocActifOuDefaut(player.getUniqueId()), n));
+        ItemStack item = creerItemBloc(blocActifOuDefaut(player.getUniqueId()), n);
+        player.getInventory().setItemInOffHand(item);
+        player.getInventory().setItem(SLOT_MIROIR, item.clone());
     }
 
     private void demarrerRegen(Player player) {

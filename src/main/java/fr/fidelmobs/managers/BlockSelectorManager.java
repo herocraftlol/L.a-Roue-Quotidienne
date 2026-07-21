@@ -20,13 +20,13 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Item donné dans l'arène (3e slot de la hotbar) pour ouvrir un menu et choisir, parmi les
- * blocs débloqués à la roue, celui utilisé comme bloc de construction actif — sans avoir à
- * taper /bloc choisir <type> à la main.
+ * Item donné dans l'arène (avant-dernier slot de la hotbar) pour ouvrir un menu et choisir,
+ * parmi les blocs débloqués à la roue, celui utilisé comme bloc de construction actif — sans
+ * avoir à taper /bloc choisir <type> à la main.
  */
 public class BlockSelectorManager {
 
-    public static final int SLOT_SELECTEUR = 2; // 3e slot de la barre d'accès rapide
+    public static final int SLOT_SELECTEUR = 7; // avant-dernier slot de la barre d'accès rapide (8e sur 9)
 
     private final LoyaltyMobsPlugin plugin;
 
