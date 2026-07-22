@@ -90,6 +90,39 @@ public final class MobRegistry {
     }
 
     /**
+     * Tire un mob comme {@link #tirerMobAleatoire()}, mais jamais en dessous de
+     * {@code minRareteOrdinal} (ordinal de {@link MobRarity}). Utilisé pour garantir
+     * au moins une récompense rare parmi les catégories à chaque lancer de roue.
+     */
+    public static EntityType tirerMobAleatoire(int minRareteOrdinal) {
+        MobRarity[] valeurs = MobRarity.values();
+        int min = Math.max(0, Math.min(minRareteOrdinal, valeurs.length - 1));
+
+        int poidsTotal = 0;
+        for (int i = min; i < valeurs.length; i++) poidsTotal += valeurs[i].getPoids();
+        if (poidsTotal <= 0) return tirerMobAleatoire();
+
+        int tirage = RANDOM.nextInt(poidsTotal);
+        MobRarity rareteTiree = valeurs[min];
+        int cumul = 0;
+        for (int i = min; i < valeurs.length; i++) {
+            cumul += valeurs[i].getPoids();
+            if (tirage < cumul) {
+                rareteTiree = valeurs[i];
+                break;
+            }
+        }
+
+        MobRarity finalRarete = rareteTiree;
+        List<EntityType> candidats = RARETE_PAR_MOB.entrySet().stream()
+                .filter(e -> e.getValue() == finalRarete)
+                .map(Map.Entry::getKey)
+                .toList();
+
+        return candidats.get(RANDOM.nextInt(candidats.size()));
+    }
+
+    /**
      * Retrouve un EntityType à partir d'un nom saisi par le joueur (insensible à la casse,
      * accepte les underscores ou non).
      */

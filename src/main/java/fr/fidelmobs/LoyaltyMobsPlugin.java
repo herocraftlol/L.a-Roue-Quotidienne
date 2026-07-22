@@ -18,8 +18,10 @@ import fr.fidelmobs.listeners.AllyListener;
 import fr.fidelmobs.listeners.ArenaProtectionListener;
 import fr.fidelmobs.listeners.LoginListener;
 import fr.fidelmobs.managers.ArenaScoreboardManager;
+import fr.fidelmobs.managers.ArrowManager;
 import fr.fidelmobs.managers.BlockSelectorManager;
 import fr.fidelmobs.managers.BuildBlockManager;
+import fr.fidelmobs.managers.GearSelectorManager;
 import fr.fidelmobs.managers.HologramManager;
 import fr.fidelmobs.managers.InvocationManager;
 import fr.fidelmobs.managers.KitManager;
@@ -37,6 +39,8 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
     private HologramManager hologramManager;
     private InvocationManager invocationManager;
     private BlockSelectorManager blockSelectorManager;
+    private GearSelectorManager gearSelectorManager;
+    private ArrowManager arrowManager;
     private DatabaseManager databaseManager;
 
     @Override
@@ -53,6 +57,8 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
         this.hologramManager = new HologramManager(this);
         this.invocationManager = new InvocationManager(this);
         this.blockSelectorManager = new BlockSelectorManager(this);
+        this.gearSelectorManager = new GearSelectorManager(this);
+        this.arrowManager = new ArrowManager(this);
 
         getServer().getPluginManager().registerEvents(new LoginListener(this), this);
         getServer().getPluginManager().registerEvents(allyListener, this);
@@ -150,5 +156,13 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
 
     public BlockSelectorManager getBlockSelectorManager() {
         return blockSelectorManager;
+    }
+
+    public GearSelectorManager getGearSelectorManager() {
+        return gearSelectorManager;
+    }
+
+    public ArrowManager getArrowManager() {
+        return arrowManager;
     }
 }

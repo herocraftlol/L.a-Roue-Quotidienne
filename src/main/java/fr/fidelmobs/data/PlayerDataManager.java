@@ -202,6 +202,37 @@ public class PlayerDataManager {
         get(uuid).set(cheminEquipe(slot), index);
     }
 
+    // ---- Flèches à effet (collection obtenue à la roue, tirables avec l'arc du kit) ----
+
+    @SuppressWarnings("unchecked")
+    public List<ItemStack> getFleches(UUID uuid) {
+        List<?> brut = get(uuid).getList("fleches");
+        List<ItemStack> resultat = new ArrayList<>();
+        if (brut != null) {
+            for (Object o : brut) {
+                if (o instanceof ItemStack is) {
+                    resultat.add(is);
+                }
+            }
+        }
+        return resultat;
+    }
+
+    public int ajouterFleche(UUID uuid, ItemStack item) {
+        List<ItemStack> liste = getFleches(uuid);
+        liste.add(item);
+        get(uuid).set("fleches", liste);
+        return liste.size() - 1;
+    }
+
+    public int getIndexFlecheEquipee(UUID uuid) {
+        return get(uuid).getInt("fleche_equipee", -1);
+    }
+
+    public void setIndexFlecheEquipee(UUID uuid, int index) {
+        get(uuid).set("fleche_equipee", index);
+    }
+
     // ---- Statistiques PvP (kills / morts, persistantes pour le classement) ----
 
     public int getKills(UUID uuid) {

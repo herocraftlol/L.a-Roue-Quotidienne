@@ -80,10 +80,34 @@ public final class GearRegistry {
         return 0;
     }
 
+    /**
+     * Variante de {@link #tirerTier()} qui ne renvoie jamais un tier en dessous de
+     * {@code minTierOrdinal}. Utilisé pour garantir au moins une récompense rare
+     * parmi les catégories à chaque lancer de roue.
+     */
+    private static int tirerTier(int minTierOrdinal) {
+        MobRarity[] valeurs = MobRarity.values();
+        int min = Math.max(0, Math.min(minTierOrdinal, valeurs.length - 1));
+        int poidsTotal = 0;
+        for (int i = min; i < valeurs.length; i++) poidsTotal += valeurs[i].getPoids();
+        if (poidsTotal <= 0) return min;
+        int tirage = RANDOM.nextInt(poidsTotal);
+        int cumul = 0;
+        for (int i = min; i < valeurs.length; i++) {
+            cumul += valeurs[i].getPoids();
+            if (tirage < cumul) return i;
+        }
+        return min;
+    }
+
     public static ItemStack genererObjetAleatoire() {
+        return genererObjetAleatoire(0);
+    }
+
+    public static ItemStack genererObjetAleatoire(int minTierOrdinal) {
         TypeEquipement[] types = TypeEquipement.values();
         TypeEquipement type = types[RANDOM.nextInt(types.length)];
-        int tier = tirerTier();
+        int tier = minTierOrdinal > 0 ? tirerTier(minTierOrdinal) : tirerTier();
         boolean enchante = RANDOM.nextDouble() < CHANCE_ENCHANTE;
 
         // Le stuff de base (cuir/bois, tier COMMUN) ne doit jamais s'obtenir "tel quel" à la
@@ -154,5 +178,34 @@ public final class GearRegistry {
             case BOTTES -> Material.LEATHER_BOOTS;
             case ARME -> Material.WOODEN_SWORD;
         };
+    }
+
+    /**
+     * Formatte les enchantements d'un objet en une liste lisible ("Tranchant III, Solidité II"),
+     * pour affichage dans /equipement liste. Retourne null si l'objet n'est pas enchanté.
+     */
+    public static String formatEnchantements(ItemStack item) {
+        if (item == null || !item.hasItemMeta() || item.getItemMeta().getEnchants().isEmpty()) {
+            return null;
+        }
+        return item.getItemMeta().getEnchants().entrySet().stream()
+                .map(e -> nomEnchant(e.getKey()) + " " + chiffreRomain(e.getValue()))
+                .collect(java.util.stream.Collectors.joining(", "));
+    }
+
+    private static String nomEnchant(Enchantment ench) {
+        if (ench.equals(Enchantment.SHARPNESS)) return "Tranchant";
+        if (ench.equals(Enchantment.KNOCKBACK)) return "Recul";
+        if (ench.equals(Enchantment.FIRE_ASPECT)) return "Aspect du feu";
+        if (ench.equals(Enchantment.UNBREAKING)) return "Solidité";
+        if (ench.equals(Enchantment.PROTECTION)) return "Protection";
+        if (ench.equals(Enchantment.THORNS)) return "Épines";
+        String brut = ench.getKey().getKey().toLowerCase().replace('_', ' ');
+        return brut.substring(0, 1).toUpperCase() + brut.substring(1);
+    }
+
+    private static String chiffreRomain(int niveau) {
+        String[] romains = {"", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"};
+        return (niveau >= 0 && niveau < romains.length) ? romains[niveau] : String.valueOf(niveau);
     }
 }

@@ -34,6 +34,9 @@ arene:
   # Coût en points d'un ticket de roue acheté via /points acheter
   cout-ticket-points: 1500
 
+  # Temps de recharge minimum entre deux tirs de l'arc du kit (secondes)
+  arc-cooldown-secondes: 3
+
 # Duree de vie maximale d'un mob allie invoque en secondes (0 = illimite tant qu'il ne meurt pas)
 duree-vie-allie-secondes: 600
 

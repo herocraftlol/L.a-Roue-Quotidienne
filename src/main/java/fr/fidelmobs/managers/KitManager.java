@@ -41,7 +41,7 @@ public class KitManager {
         return item;
     }
 
-    private ItemStack verrouiller(ItemStack item) {
+    public ItemStack verrouiller(ItemStack item) {
         if (item == null) return item;
         ItemStack clone = item.clone();
         ItemMeta meta = clone.getItemMeta();
@@ -81,6 +81,8 @@ public class KitManager {
                 }
             }
         }
+
+        plugin.getArrowManager().equiper(player);
     }
 
     public void retirerKit(Player player) {
@@ -96,6 +98,8 @@ public class KitManager {
         // getItemInMainHand() ne pointait plus vers l'épée et elle restait coincée.
         ItemStack arme = player.getInventory().getItem(SLOT_ARME);
         if (estKit(arme)) player.getInventory().setItem(SLOT_ARME, null);
+
+        plugin.getArrowManager().retirer(player);
     }
 
     public boolean estKit(ItemStack item) {

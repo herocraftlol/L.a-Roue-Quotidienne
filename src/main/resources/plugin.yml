@@ -1,5 +1,5 @@
 name: LoyaltyMobs
-version: '1.0.12'
+version: '1.0.13'
 main: fr.fidelmobs.LoyaltyMobsPlugin
 api-version: '1.21'
 author: Toi
@@ -22,8 +22,8 @@ commands:
     description: Choisis ton bloc de construction actif pour l'arene PvP.
     usage: /bloc <liste|choisir> [type]
   equipement:
-    description: Consulte et equipe ton materiel PvP (armure/epee).
-    usage: /equipement <liste|equiper> [numero]
+    description: Consulte et equipe ton materiel PvP (armure/epee/fleches a effet).
+    usage: /equipement <liste|equiper|fleches> [numero]
   arenepvp:
     description: "[Admin] Definit la zone de l'arene PvP via le bloc regarde."
     usage: /arenepvp <pos1|pos2|info>

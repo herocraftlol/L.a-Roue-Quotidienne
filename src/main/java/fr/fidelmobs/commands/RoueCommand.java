@@ -1,6 +1,7 @@
 package fr.fidelmobs.commands;
 
 import fr.fidelmobs.LoyaltyMobsPlugin;
+import fr.fidelmobs.arena.ArrowRegistry;
 import fr.fidelmobs.arena.BlockRegistry;
 import fr.fidelmobs.arena.GearRegistry;
 import fr.fidelmobs.data.PlayerDataManager;
@@ -15,16 +16,30 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 import java.util.UUID;
 
 public class RoueCommand implements CommandExecutor {
 
     private static final String SEPARATEUR = "§8§m§l                                                            ";
+    private static final Random RANDOM = new Random();
+
+    // Délai (en ticks) entre chaque étape de l'animation de révélation des récompenses
+    private static final int DELAI_ENTRE_ETAPES = 22;
 
     private final LoyaltyMobsPlugin plugin;
 
     public RoueCommand(LoyaltyMobsPlugin plugin) {
         this.plugin = plugin;
+    }
+
+    /**
+     * Une étape de révélation animée : catégorie + nom coloré déjà formatés, et rareté
+     * (utilisée pour choisir le son joué et l'intensité du titre).
+     */
+    private record Etape(String categorie, String nomAffiche, MobRarity rarete) {
     }
 
     @Override
@@ -42,57 +57,93 @@ public class RoueCommand implements CommandExecutor {
             return true;
         }
 
+        // ---- Phase 1 : tirage pur (sans effet de bord) de chaque catégorie ----
+        EntityType mob = MobRegistry.tirerMobAleatoire();
+        Material bloc = BlockRegistry.tirerBlocAleatoire(data.getBlocsDebloques(uuid));
+        ItemStack equip = GearRegistry.genererObjetAleatoire();
+        ItemStack fleche = ArrowRegistry.genererFlecheAleatoire();
+
+        MobRarity rMob = MobRegistry.getRarete(mob);
+        MobRarity rBloc = BlockRegistry.getRarete(bloc);
+        MobRarity rEquip = MobRarity.values()[GearRegistry.getRarete(equip)];
+        MobRarity rFleche = MobRarity.values()[ArrowRegistry.getRarete(fleche)];
+
+        // ---- Garantie : au moins une récompense RARE ou mieux parmi les 4 catégories ----
+        MobRarity meilleure = meilleureRarete(rMob, rBloc, rEquip, rFleche);
+        if (meilleure.ordinal() < MobRarity.RARE.ordinal()) {
+            int forcee = RANDOM.nextInt(4);
+            switch (forcee) {
+                case 0 -> {
+                    mob = MobRegistry.tirerMobAleatoire(MobRarity.RARE.ordinal());
+                    rMob = MobRegistry.getRarete(mob);
+                }
+                case 1 -> {
+                    bloc = BlockRegistry.tirerBlocAleatoire(data.getBlocsDebloques(uuid), MobRarity.RARE.ordinal());
+                    rBloc = BlockRegistry.getRarete(bloc);
+                }
+                case 2 -> {
+                    equip = GearRegistry.genererObjetAleatoire(MobRarity.RARE.ordinal());
+                    rEquip = MobRarity.values()[GearRegistry.getRarete(equip)];
+                }
+                default -> {
+                    fleche = ArrowRegistry.genererFlecheAleatoire(MobRarity.RARE.ordinal());
+                    rFleche = MobRarity.values()[ArrowRegistry.getRarete(fleche)];
+                }
+            }
+            meilleure = meilleureRarete(rMob, rBloc, rEquip, rFleche);
+        }
+
         player.sendMessage(" ");
         player.sendMessage(SEPARATEUR);
         player.sendMessage("      §b§l✦ ROUE DE LA FIDÉLITÉ ✦");
         player.sendMessage(SEPARATEUR);
         player.sendMessage(" ");
 
-        // Un lancer de roue donne une récompense de chaque catégorie
-        MobRarity r1 = tirerMob(player, data, uuid);
-        MobRarity r2 = tirerBloc(player, data, uuid);
-        MobRarity r3 = tirerEquipement(player, data, uuid);
+        // ---- Phase 2 : application (mutation des données + messages de chat détaillés) ----
+        List<Etape> etapes = new ArrayList<>();
+        etapes.add(new Etape("☠ Allié", appliquerMob(player, data, uuid, mob, rMob), rMob));
+        etapes.add(new Etape("▣ Bloc", appliquerBloc(player, data, uuid, bloc, rBloc), rBloc));
+        etapes.add(new Etape("⚔ Équip", appliquerEquipement(player, data, uuid, equip, rEquip), rEquip));
+        etapes.add(new Etape("➶ Flèche", appliquerFleche(player, data, uuid, fleche, rFleche), rFleche));
 
         player.sendMessage(" ");
         player.sendMessage(SEPARATEUR);
         player.sendMessage(" ");
 
         data.save(uuid);
-        jouerFanfare(player, meilleureRarete(r1, r2, r3));
+
+        // ---- Phase 3 : animation (titres + sons) révélant chaque récompense, puis fanfare finale ----
+        player.playSound(player.getLocation(), Sound.BLOCK_ENCHANTMENT_TABLE_USE, 0.8f, 1f);
+        player.sendTitle("§b§l✦ ROUE DE LA FIDÉLITÉ ✦", "§7Découverte des récompenses...", 5, 15, 5);
+        animerRecompenses(player, etapes, meilleure);
+
         return true;
     }
 
-    private MobRarity tirerMob(Player player, PlayerDataManager data, UUID uuid) {
-        EntityType mob = MobRegistry.tirerMobAleatoire();
-        MobRarity rarete = MobRegistry.getRarete(mob);
+    private String appliquerMob(Player player, PlayerDataManager data, UUID uuid, EntityType mob, MobRarity rarete) {
         data.ajouterMob(uuid, mob);
-
-        afficherLigne(player, "☠ Allié", rarete.getCouleur() + "§l" + nomLisible(mob.name()), rarete);
+        String nom = nomLisible(mob.name());
+        afficherLigne(player, "☠ Allié", rarete.getCouleur() + "§l" + nom, rarete);
         player.sendMessage("  §7Utilise §f/armee §7pour voir toute ta collection.");
-        return rarete;
+        return nom;
     }
 
-    private MobRarity tirerBloc(Player player, PlayerDataManager data, UUID uuid) {
-        Material bloc = BlockRegistry.tirerBlocAleatoire();
-        MobRarity rarete = BlockRegistry.getRarete(bloc);
+    private String appliquerBloc(Player player, PlayerDataManager data, UUID uuid, Material bloc, MobRarity rarete) {
         boolean nouveau = !data.getBlocsDebloques(uuid).contains(bloc);
         data.debloquerBloc(uuid, bloc);
-
-        afficherLigne(player, "▣ Bloc", rarete.getCouleur() + "§l" + nomLisible(bloc.name()), rarete);
+        String nom = nomLisible(bloc.name());
+        afficherLigne(player, "▣ Bloc", rarete.getCouleur() + "§l" + nom, rarete);
         if (nouveau) {
             player.sendMessage("  §aNouveau bloc débloqué ! Utilise §f/bloc choisir " + bloc.name() + " §apour l'activer.");
         } else {
             player.sendMessage("  §7Tu possédais déjà ce bloc.");
         }
-        return rarete;
+        return nom;
     }
 
-    private MobRarity tirerEquipement(Player player, PlayerDataManager data, UUID uuid) {
-        ItemStack item = GearRegistry.genererObjetAleatoire();
+    private String appliquerEquipement(Player player, PlayerDataManager data, UUID uuid, ItemStack item, MobRarity rarete) {
         GearRegistry.TypeEquipement type = GearRegistry.getType(item);
-        int rareteIndex = GearRegistry.getRarete(item);
-        MobRarity rarete = MobRarity.values()[rareteIndex];
-
+        int rareteIndex = rarete.ordinal();
         int index = data.ajouterEquipement(uuid, item);
 
         String nom = item.getItemMeta().hasDisplayName() ? item.getItemMeta().getDisplayName() : item.getType().name();
@@ -107,10 +158,34 @@ public class RoueCommand implements CommandExecutor {
                 data.setIndexEquipe(uuid, type.slot, index);
                 player.sendMessage("  §aÉquipé automatiquement !");
             } else {
-                player.sendMessage("  §7Utilise §f/equipement liste §7et §f/equipement equiper §7pour le porter à la place.");
+                player.sendMessage("  §7Utilise le menu d'équipement (arène) §7ou §f/equipement equiper §7pour le porter à la place.");
             }
         }
-        return rarete;
+        return nom;
+    }
+
+    private String appliquerFleche(Player player, PlayerDataManager data, UUID uuid, ItemStack item, MobRarity rarete) {
+        int rareteIndex = rarete.ordinal();
+        int index = data.ajouterFleche(uuid, item);
+
+        String nom = item.getItemMeta().hasDisplayName() ? item.getItemMeta().getDisplayName() : item.getType().name();
+        afficherLigne(player, "➶ Flèche", "§l" + nom, rarete);
+        String effet = ArrowRegistry.decrireEffet(item);
+        if (effet != null) {
+            player.sendMessage("  §8✦ " + effet);
+        }
+
+        int indexActuel = data.getIndexFlecheEquipee(uuid);
+        int rareteActuelle = indexActuel >= 0 && indexActuel < data.getFleches(uuid).size()
+                ? ArrowRegistry.getRarete(data.getFleches(uuid).get(indexActuel)) : -1;
+
+        if (indexActuel < 0 || rareteIndex >= rareteActuelle) {
+            data.setIndexFlecheEquipee(uuid, index);
+            player.sendMessage("  §aÉquipée automatiquement !");
+        } else {
+            player.sendMessage("  §7Utilise le menu d'équipement (arène) §7pour la porter à la place.");
+        }
+        return nom;
     }
 
     /**
@@ -132,8 +207,44 @@ public class RoueCommand implements CommandExecutor {
     }
 
     /**
-     * Petit effet sonore/visuel qui monte en intensité avec la meilleure rareté obtenue
-     * lors du tirage, pour rendre les gros coups bien plus voyants qu'un simple message.
+     * Anime la révélation des 4 récompenses l'une après l'autre (titre + son selon la rareté
+     * de chacune), puis termine sur une fanfare finale reprenant la meilleure rareté obtenue.
+     */
+    private void animerRecompenses(Player player, List<Etape> etapes, MobRarity meilleure) {
+        int delai = 20; // laisse le titre d'intro (phase 3) se terminer avant la première étape
+        for (Etape etape : etapes) {
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                if (!player.isOnline()) return;
+                String sousTitre = etape.nomAffiche() + " §8« " + etape.rarete().getCouleur() + etape.rarete().getLabel() + "§8 »";
+                player.sendTitle(etape.rarete().getCouleur() + "§l" + etape.categorie(), sousTitre, 3, 18, 5);
+                jouerSonEtape(player, etape.rarete());
+            }, delai);
+            delai += DELAI_ENTRE_ETAPES;
+        }
+
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            if (!player.isOnline()) return;
+            jouerFanfare(player, meilleure);
+        }, delai + 5);
+    }
+
+    /**
+     * Petit son joué à la révélation de chaque récompense individuelle, qui monte en
+     * intensité avec sa rareté propre (indépendamment de la fanfare finale sur la meilleure).
+     */
+    private void jouerSonEtape(Player player, MobRarity rarete) {
+        switch (rarete) {
+            case LEGENDAIRE -> player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.6f, 1f);
+            case EPIQUE -> player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.7f, 0.9f);
+            case RARE -> player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.6f, 1.3f);
+            case PEU_COMMUN -> player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.7f, 1f);
+            default -> player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 1f);
+        }
+    }
+
+    /**
+     * Titre/son final qui monte en intensité avec la meilleure rareté obtenue lors du
+     * tirage, pour rendre les gros coups bien plus voyants qu'un simple message.
      */
     private void jouerFanfare(Player player, MobRarity meilleure) {
         switch (meilleure) {
