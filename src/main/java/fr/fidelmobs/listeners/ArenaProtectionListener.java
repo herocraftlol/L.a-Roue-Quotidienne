@@ -11,14 +11,17 @@ import fr.fidelmobs.managers.InvocationInventoryHolder;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
@@ -375,20 +378,49 @@ public class ArenaProtectionListener implements Listener {
     public void onMort(PlayerDeathEvent event) {
         Player victime = event.getEntity();
         if (!estDansArene(victime)) return;
-        Player tueur = victime.getKiller();
+
+        Player tueurDirect = victime.getKiller();
+        UUID tueurUuid = tueurDirect != null ? tueurDirect.getUniqueId() : null;
+        Player tueurPourMessage = tueurDirect;
+        boolean viaMobAllie = false;
+
+        // Si la victime n'a pas de tueur direct (pas tuée par un joueur), on regarde si le
+        // dernier coup vient d'un mob invoqué (ou d'une flèche tirée par ce mob) : dans ce
+        // cas, le kill et les points sont attribués au joueur propriétaire du mob, comme
+        // s'il avait tué lui-même.
+        if (tueurUuid == null) {
+            EntityDamageEvent derniereCause = victime.getLastDamageCause();
+            if (derniereCause instanceof EntityDamageByEntityEvent degatsParEntite) {
+                Entity source = degatsParEntite.getDamager();
+                if (source instanceof Projectile projectile && projectile.getShooter() instanceof Entity tireur) {
+                    source = tireur;
+                }
+                UUID proprietaire = plugin.getAllyListener().getProprietaire(source);
+                if (proprietaire != null) {
+                    tueurUuid = proprietaire;
+                    tueurPourMessage = plugin.getServer().getPlayer(proprietaire);
+                    viaMobAllie = true;
+                }
+            }
+        }
 
         PlayerDataManager data = plugin.getPlayerDataManager();
         data.ajouterMort(victime.getUniqueId());
         data.save(victime.getUniqueId());
-        if (tueur != null) {
-            data.ajouterKill(tueur.getUniqueId());
+        if (tueurUuid != null) {
+            data.ajouterKill(tueurUuid);
             int points = Math.max(0, plugin.getConfig().getInt("arene.points-par-kill", 15));
-            data.ajouterPoints(tueur.getUniqueId(), points);
-            data.save(tueur.getUniqueId());
-            tueur.sendMessage("§7+" + points + " points de fidélité §8(kill sur " + victime.getName() + ")");
+            data.ajouterPoints(tueurUuid, points);
+            data.save(tueurUuid);
+            if (tueurPourMessage != null) {
+                String contexte = viaMobAllie
+                        ? " §8(kill via ton allié invoqué sur " + victime.getName() + ")"
+                        : " §8(kill sur " + victime.getName() + ")";
+                tueurPourMessage.sendMessage("§7+" + points + " points de fidélité" + contexte);
+            }
         }
 
-        plugin.getScoreboardManager().enregistrerElimination(tueur, victime);
+        plugin.getScoreboardManager().enregistrerElimination(tueurPourMessage, victime);
         // Kills/morts/K-D viennent de changer : on rafraîchit l'hologramme de classement
         // s'il est actif, pour qu'il reste à jour sans intervention manuelle.
         plugin.getHologramManager().actualiser();
