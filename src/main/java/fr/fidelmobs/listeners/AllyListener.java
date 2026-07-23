@@ -1,6 +1,7 @@
 package fr.fidelmobs.listeners;
 
 import fr.fidelmobs.LoyaltyMobsPlugin;
+import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -23,12 +24,19 @@ import java.util.UUID;
 /**
  * Gère la vie des mobs invoqués en tant qu'alliés :
  * - ils n'attaquent jamais leur propriétaire ni les alliés de celui-ci
- * - ils ciblent en priorité les autres joueurs (et leurs alliés) à proximité
+ * - ils ciblent activement les autres joueurs ET les mobs invoqués par d'autres joueurs
+ *   à proximité (les mobs adverses se combattent entre eux comme des armées rivales)
  * - ils sont nettoyés à la mort, à la déconnexion du propriétaire ou après une durée de vie max
  */
 public class AllyListener implements Listener {
 
     public static final NamespacedKey CLE_PROPRIETAIRE = new NamespacedKey("fidelmobs", "ally_owner");
+
+    // Rayon (en blocs) dans lequel un mob allié recherche activement une cible ennemie
+    // (joueur adverse ou mob invoqué par un autre joueur).
+    private static final double PORTEE_CIBLAGE_ACTIF = 20.0;
+    // Intervalle (en ticks, 20 = 1s) entre deux rafraîchissements du ciblage actif.
+    private static final long INTERVALLE_CIBLAGE_TICKS = 20L;
 
     private final LoyaltyMobsPlugin plugin;
     // propriétaire -> entités alliées actuellement en vie
@@ -36,6 +44,74 @@ public class AllyListener implements Listener {
 
     public AllyListener(LoyaltyMobsPlugin plugin) {
         this.plugin = plugin;
+        demarrerCiblageActif();
+    }
+
+    /**
+     * Tâche répétitive qui force chaque mob allié encore vivant à rechercher activement
+     * une cible ennemie (joueur adverse ou mob invoqué par un autre joueur) à proximité.
+     * Nécessaire car l'IA vanilla des mobs hostiles ne considère jamais d'autres mobs
+     * comme cibles : sans ce forçage, deux armées invoquées s'ignoreraient complètement.
+     */
+    private void demarrerCiblageActif() {
+        plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
+            if (alliesParProprietaire.isEmpty()) return;
+
+            for (Map.Entry<UUID, Set<UUID>> entree : alliesParProprietaire.entrySet()) {
+                UUID proprietaire = entree.getKey();
+                for (UUID idAllie : entree.getValue()) {
+                    Entity entite = plugin.getServer().getEntity(idAllie);
+                    if (!(entite instanceof Mob mob) || mob.isDead() || !mob.isValid()) continue;
+
+                    LivingEntity cibleActuelle = mob.getTarget();
+                    if (cibleActuelle != null && !cibleActuelle.isDead() && cibleActuelle.isValid()
+                            && estCibleEnnemieValide(proprietaire, cibleActuelle)) {
+                        continue; // garde sa cible actuelle tant qu'elle reste valide
+                    }
+
+                    LivingEntity nouvelleCible = trouverCibleEnnemieLaPlusProche(proprietaire, mob);
+                    if (nouvelleCible != null) {
+                        mob.setTarget(nouvelleCible);
+                    }
+                }
+            }
+        }, INTERVALLE_CIBLAGE_TICKS, INTERVALLE_CIBLAGE_TICKS);
+    }
+
+    /**
+     * Une cible est valide pour un mob allié si ce n'est ni son propriétaire, ni un mob
+     * invoqué par ce même propriétaire (jamais de tir ami).
+     */
+    private boolean estCibleEnnemieValide(UUID proprietaireAllie, LivingEntity cible) {
+        if (cible.getUniqueId().equals(proprietaireAllie)) return false;
+        UUID proprietaireCible = getProprietaire(cible);
+        return proprietaireCible == null || !proprietaireCible.equals(proprietaireAllie);
+    }
+
+    /**
+     * Cherche, dans un rayon donné autour du mob, le joueur adverse ou le mob invoqué par
+     * un autre joueur le plus proche. Ignore la faune/faune neutre (animaux non invoqués).
+     */
+    private LivingEntity trouverCibleEnnemieLaPlusProche(UUID proprietaire, Mob mob) {
+        Location origine = mob.getLocation();
+        LivingEntity meilleure = null;
+        double meilleureDistanceCarree = PORTEE_CIBLAGE_ACTIF * PORTEE_CIBLAGE_ACTIF;
+
+        for (Entity proche : mob.getNearbyEntities(PORTEE_CIBLAGE_ACTIF, PORTEE_CIBLAGE_ACTIF, PORTEE_CIBLAGE_ACTIF)) {
+            if (!(proche instanceof LivingEntity vivant) || vivant.isDead() || !vivant.isValid()) continue;
+            if (!estCibleEnnemieValide(proprietaire, vivant)) continue;
+
+            boolean estJoueurEnnemi = vivant instanceof Player;
+            boolean estMobAllieEnnemi = getProprietaire(vivant) != null;
+            if (!estJoueurEnnemi && !estMobAllieEnnemi) continue; // ignore la faune neutre
+
+            double distanceCarree = origine.distanceSquared(vivant.getLocation());
+            if (distanceCarree < meilleureDistanceCarree) {
+                meilleureDistanceCarree = distanceCarree;
+                meilleure = vivant;
+            }
+        }
+        return meilleure;
     }
 
     public void enregistrerAllie(Mob mob, Player proprietaire) {
@@ -56,7 +132,12 @@ public class AllyListener implements Listener {
         }
     }
 
-    private UUID getProprietaire(Entity entity) {
+    /**
+     * Retourne l'UUID du joueur propriétaire de cette entité si c'est un mob allié invoqué,
+     * ou {@code null} sinon. Public pour permettre d'attribuer un kill fait par un mob
+     * allié à son propriétaire (voir ArenaProtectionListener#onMort).
+     */
+    public UUID getProprietaire(Entity entity) {
         String s = entity.getPersistentDataContainer().get(CLE_PROPRIETAIRE, PersistentDataType.STRING);
         if (s == null) return null;
         try {

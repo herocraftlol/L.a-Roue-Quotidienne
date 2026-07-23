@@ -17,26 +17,70 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
  * Arc du kit PvP (4e slot de la hotbar) : tire la flèche à effet actuellement équipée par
  * le joueur (ou une flèche simple par défaut) sans jamais la consommer — au même titre que
  * l'armure/épée du kit, elle est prêtée pour la durée du combat en arène. Un temps de
- * recharge minimal est imposé entre deux tirs pour éviter le spam.
+ * recharge minimal est imposé entre deux tirs pour éviter le spam, et ce temps de recharge
+ * restant est affiché en direct (barre d'action, mise à jour plusieurs fois par seconde)
+ * jusqu'à ce que l'arc soit de nouveau prêt.
  */
 public class ArrowManager {
 
     public static final int SLOT_ARC = 3; // 4e slot de la barre d'accès rapide
     public static final int SLOT_FLECHE = 9; // 1re case de l'inventaire principal (sous la hotbar)
 
+    // Fréquence (en ticks) de rafraîchissement de l'affichage en direct de la recharge.
+    // 2 ticks (0,1s) donne un décompte fluide sans surcharger le serveur.
+    private static final long INTERVALLE_AFFICHAGE_TICKS = 2L;
+
     private final LoyaltyMobsPlugin plugin;
     private final Map<UUID, Long> prochainTirAutorise = new HashMap<>();
+    // Joueurs pour qui il reste à afficher le message "Arc prêt !" une fois la recharge terminée
+    private final Set<UUID> enAttenteMessagePret = new HashSet<>();
 
     public ArrowManager(LoyaltyMobsPlugin plugin) {
         this.plugin = plugin;
+        demarrerAffichageEnDirect();
+    }
+
+    /**
+     * Tâche répétitive qui met à jour la barre d'action de chaque joueur ayant tiré
+     * récemment, tant que son arc est en recharge, pour que le temps d'attente restant
+     * s'affiche en direct (et non plus seulement au moment d'un tir refusé).
+     */
+    private void demarrerAffichageEnDirect() {
+        plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
+            if (prochainTirAutorise.isEmpty()) return;
+            long maintenant = System.currentTimeMillis();
+            Iterator<Map.Entry<UUID, Long>> it = prochainTirAutorise.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<UUID, Long> entree = it.next();
+                UUID uuid = entree.getKey();
+                Player joueur = plugin.getServer().getPlayer(uuid);
+                if (joueur == null || !joueur.isOnline()) {
+                    it.remove();
+                    enAttenteMessagePret.remove(uuid);
+                    continue;
+                }
+
+                long resteMs = entree.getValue() - maintenant;
+                if (resteMs > 0) {
+                    joueur.sendActionBar(Component.text("⏳ Recharge de l'arc : "
+                                    + String.format("%.1f", resteMs / 1000.0) + "s")
+                            .color(NamedTextColor.RED));
+                } else if (enAttenteMessagePret.remove(uuid)) {
+                    joueur.sendActionBar(Component.text("✔ Arc prêt à tirer !").color(NamedTextColor.GREEN));
+                }
+            }
+        }, INTERVALLE_AFFICHAGE_TICKS, INTERVALLE_AFFICHAGE_TICKS);
     }
 
     private long cooldownMs() {
@@ -116,11 +160,13 @@ public class ArrowManager {
         }
 
         prochainTirAutorise.put(player.getUniqueId(), maintenant + cooldownMs());
+        enAttenteMessagePret.add(player.getUniqueId());
         event.setConsumeItem(false);
         player.playSound(player.getLocation(), Sound.ENTITY_ARROW_SHOOT, 0.8f, 1.2f);
     }
 
     public void oublierJoueur(UUID uuid) {
         prochainTirAutorise.remove(uuid);
+        enAttenteMessagePret.remove(uuid);
     }
 }

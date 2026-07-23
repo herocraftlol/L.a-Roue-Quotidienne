@@ -26,8 +26,10 @@ public class RoueCommand implements CommandExecutor {
     private static final String SEPARATEUR = "§8§m§l                                                            ";
     private static final Random RANDOM = new Random();
 
-    // Délai (en ticks) entre chaque étape de l'animation de révélation des récompenses
-    private static final int DELAI_ENTRE_ETAPES = 22;
+    // Délai (en ticks, 20 ticks = 1s) entre chaque étape de l'animation de révélation des
+    // récompenses. Volontairement allongé pour laisser au joueur le temps de lire le nom
+    // de la récompense et sa rareté avant que le titre suivant n'apparaisse.
+    private static final int DELAI_ENTRE_ETAPES = 50;
 
     private final LoyaltyMobsPlugin plugin;
 
@@ -112,9 +114,18 @@ public class RoueCommand implements CommandExecutor {
 
         data.save(uuid);
 
+        // Si le joueur est déjà en arène et qu'une pièce d'équipement/flèche vient d'être
+        // équipée automatiquement (meilleure rareté), on rafraîchit immédiatement son kit
+        // pour qu'il puisse s'en servir tout de suite (flèche tirable en permanence dès
+        // qu'elle est équipée, arme/armure à jour) sans devoir ressortir/rentrer en arène.
+        if (plugin.getArenaProtectionListener().estDansArene(player)) {
+            plugin.getKitManager().appliquerKit(player);
+            player.updateInventory();
+        }
+
         // ---- Phase 3 : animation (titres + sons) révélant chaque récompense, puis fanfare finale ----
         player.playSound(player.getLocation(), Sound.BLOCK_ENCHANTMENT_TABLE_USE, 0.8f, 1f);
-        player.sendTitle("§b§l✦ ROUE DE LA FIDÉLITÉ ✦", "§7Découverte des récompenses...", 5, 15, 5);
+        player.sendTitle("§b§l✦ ROUE DE LA FIDÉLITÉ ✦", "§7Découverte des récompenses...", 8, 32, 10);
         animerRecompenses(player, etapes, meilleure);
 
         return true;
@@ -211,12 +222,14 @@ public class RoueCommand implements CommandExecutor {
      * de chacune), puis termine sur une fanfare finale reprenant la meilleure rareté obtenue.
      */
     private void animerRecompenses(Player player, List<Etape> etapes, MobRarity meilleure) {
-        int delai = 20; // laisse le titre d'intro (phase 3) se terminer avant la première étape
+        int delai = 35; // laisse le titre d'intro (phase 3) se terminer avant la première étape
         for (Etape etape : etapes) {
             plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
                 if (!player.isOnline()) return;
                 String sousTitre = etape.nomAffiche() + " §8« " + etape.rarete().getCouleur() + etape.rarete().getLabel() + "§8 »";
-                player.sendTitle(etape.rarete().getCouleur() + "§l" + etape.categorie(), sousTitre, 3, 18, 5);
+                // fadeIn 5, stay 45 (2,25s), fadeOut 10 : bien plus lisible que l'ancien
+                // enchaînement rapide, surtout pour les noms de récompense les plus longs.
+                player.sendTitle(etape.rarete().getCouleur() + "§l" + etape.categorie(), sousTitre, 5, 45, 10);
                 jouerSonEtape(player, etape.rarete());
             }, delai);
             delai += DELAI_ENTRE_ETAPES;
@@ -225,7 +238,7 @@ public class RoueCommand implements CommandExecutor {
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             if (!player.isOnline()) return;
             jouerFanfare(player, meilleure);
-        }, delai + 5);
+        }, delai + 10);
     }
 
     /**
@@ -249,11 +262,11 @@ public class RoueCommand implements CommandExecutor {
     private void jouerFanfare(Player player, MobRarity meilleure) {
         switch (meilleure) {
             case LEGENDAIRE -> {
-                player.sendTitle(meilleure.getCouleur() + "§l★ LÉGENDAIRE ★", "§eQuelle chance !", 5, 60, 15);
+                player.sendTitle(meilleure.getCouleur() + "§l★ LÉGENDAIRE ★", "§eQuelle chance !", 8, 90, 20);
                 player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
             }
             case EPIQUE -> {
-                player.sendTitle(meilleure.getCouleur() + "§l✦ Épique ✦", "", 5, 40, 10);
+                player.sendTitle(meilleure.getCouleur() + "§l✦ Épique ✦", "", 8, 60, 15);
                 player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1f, 0.8f);
             }
             case RARE -> player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.7f, 1.3f);
