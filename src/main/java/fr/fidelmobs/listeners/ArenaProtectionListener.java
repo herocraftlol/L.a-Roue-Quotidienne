@@ -26,10 +26,12 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -337,18 +339,26 @@ public class ArenaProtectionListener implements Listener {
         plugin.getGearSelectorManager().choisir(player, categorie, index);
     }
 
+    /**
+     * Vrai si cet item fait partie du matériel prêté en arène (kit verrouillé, charge de
+     * bloc, item d'invocation ou de sélection) et ne doit donc jamais pouvoir être perdu,
+     * déplacé, jeté ou échangé par le joueur.
+     */
+    private boolean estItemProtege(ItemStack item) {
+        if (item == null) return false;
+        return plugin.getKitManager().estKit(item)
+                || plugin.getBuildBlockManager().estItemCharge(item)
+                || plugin.getInvocationManager().estItemInvocation(item)
+                || plugin.getBlockSelectorManager().estItemSelecteur(item)
+                || plugin.getGearSelectorManager().estItemSelecteur(item);
+    }
+
     @EventHandler
     public void onDropItem(PlayerDropItemEvent event) {
         Player player = event.getPlayer();
         if (!estDansArene(player)) return;
 
-        ItemStack drop = event.getItemDrop().getItemStack();
-        boolean itemDuKit = plugin.getKitManager().estKit(drop);
-        boolean itemCharge = plugin.getBuildBlockManager().estItemCharge(drop);
-        boolean itemInvocation = plugin.getInvocationManager().estItemInvocation(drop);
-        boolean itemSelecteur = plugin.getBlockSelectorManager().estItemSelecteur(drop);
-        boolean itemSelecteurEquipement = plugin.getGearSelectorManager().estItemSelecteur(drop);
-        if (itemDuKit || itemCharge || itemInvocation || itemSelecteur || itemSelecteurEquipement) {
+        if (estItemProtege(event.getItemDrop().getItemStack())) {
             event.setCancelled(true);
         }
     }
@@ -358,18 +368,45 @@ public class ArenaProtectionListener implements Listener {
         if (!(event.getWhoClicked() instanceof Player player)) return;
         if (!estDansArene(player)) return;
 
-        boolean clicSurKit = event.getCurrentItem() != null && (plugin.getKitManager().estKit(event.getCurrentItem())
-                || plugin.getBuildBlockManager().estItemCharge(event.getCurrentItem())
-                || plugin.getInvocationManager().estItemInvocation(event.getCurrentItem())
-                || plugin.getBlockSelectorManager().estItemSelecteur(event.getCurrentItem())
-                || plugin.getGearSelectorManager().estItemSelecteur(event.getCurrentItem()));
-        boolean curseurKit = event.getCursor() != null && (plugin.getKitManager().estKit(event.getCursor())
-                || plugin.getBuildBlockManager().estItemCharge(event.getCursor())
-                || plugin.getInvocationManager().estItemInvocation(event.getCursor())
-                || plugin.getBlockSelectorManager().estItemSelecteur(event.getCursor())
-                || plugin.getGearSelectorManager().estItemSelecteur(event.getCursor()));
+        if (estItemProtege(event.getCurrentItem()) || estItemProtege(event.getCursor())) {
+            event.setCancelled(true);
+        }
+    }
 
-        if (clicSurKit || curseurKit) {
+    /**
+     * Le glisser-déposer (InventoryDragEvent) répartit un item sur plusieurs slots en une
+     * seule action et n'est pas couvert par onClicInventaire (InventoryClickEvent) : sans
+     * ce blocage, on pourrait faire glisser un item du kit hors de son slot, ou recouvrir
+     * un slot verrouillé (ex. la flèche équipée) avec un autre item.
+     */
+    @EventHandler
+    public void onDragInventaire(InventoryDragEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        if (!estDansArene(player)) return;
+
+        if (estItemProtege(event.getOldCursor())) {
+            event.setCancelled(true);
+            return;
+        }
+
+        for (int slot : event.getRawSlots()) {
+            if (estItemProtege(event.getView().getItem(slot))) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+    }
+
+    /**
+     * Empêche le raccourci "F" (échange main/main secondaire) de sortir un item du kit
+     * (ex. la flèche équipée, glissée manuellement en main secondaire) de son slot verrouillé.
+     */
+    @EventHandler
+    public void onEchangeMainSecondaire(PlayerSwapHandItemsEvent event) {
+        Player player = event.getPlayer();
+        if (!estDansArene(player)) return;
+
+        if (estItemProtege(event.getMainHandItem()) || estItemProtege(event.getOffHandItem())) {
             event.setCancelled(true);
         }
     }

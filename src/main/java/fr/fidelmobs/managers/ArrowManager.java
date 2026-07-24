@@ -114,23 +114,29 @@ public class ArrowManager {
     }
 
     /**
-     * Place l'arc au slot 4 et la flèche actuellement équipée (ou une flèche simple par
-     * défaut) dans l'inventaire principal. Les deux sont verrouillés comme le reste du kit.
+     * Construit un exemplaire (amount=1) de la flèche actuellement équipée par le joueur,
+     * ou une flèche simple par défaut s'il n'en a aucune. Utilisé à la fois pour équiper
+     * le kit et pour la remettre en place après chaque tir (voir onTir).
      */
-    public void equiper(Player player) {
-        UUID uuid = player.getUniqueId();
+    private ItemStack construireFlecheEquipee(UUID uuid) {
         PlayerDataManager data = plugin.getPlayerDataManager();
-        KitManager kit = plugin.getKitManager();
-
-        player.getInventory().setItem(SLOT_ARC, kit.verrouiller(creerArc()));
-
         int index = data.getIndexFlecheEquipee(uuid);
         List<ItemStack> fleches = data.getFleches(uuid);
         ItemStack fleche = (index >= 0 && index < fleches.size())
                 ? fleches.get(index).clone()
                 : ArrowRegistry.flecheParDefaut();
         fleche.setAmount(1);
-        player.getInventory().setItem(SLOT_FLECHE, kit.verrouiller(fleche));
+        return fleche;
+    }
+
+    /**
+     * Place l'arc au slot 4 et la flèche actuellement équipée (ou une flèche simple par
+     * défaut) dans l'inventaire principal. Les deux sont verrouillés comme le reste du kit.
+     */
+    public void equiper(Player player) {
+        KitManager kit = plugin.getKitManager();
+        player.getInventory().setItem(SLOT_ARC, kit.verrouiller(creerArc()));
+        player.getInventory().setItem(SLOT_FLECHE, kit.verrouiller(construireFlecheEquipee(player.getUniqueId())));
     }
 
     public void retirer(Player player) {
@@ -163,6 +169,19 @@ public class ArrowManager {
         enAttenteMessagePret.add(player.getUniqueId());
         event.setConsumeItem(false);
         player.playSound(player.getLocation(), Sound.ENTITY_ARROW_SHOOT, 0.8f, 1.2f);
+
+        // Filet de sécurité : l'enchantement Infinity ne fonctionne nativement qu'avec des
+        // flèches simples sans NBT, pas avec nos flèches à effet (nom, lore, données
+        // persistantes). Même avec setConsumeItem(false), certaines versions du jeu
+        // consomment quand même la flèche du slot dédié. On force donc sa réapparition,
+        // verrouillée, au tick suivant (après que le jeu ait fini de traiter le tir),
+        // pour qu'elle soit toujours tirable en permanence.
+        UUID uuid = player.getUniqueId();
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline()) return;
+            player.getInventory().setItem(SLOT_FLECHE, plugin.getKitManager().verrouiller(construireFlecheEquipee(uuid)));
+            player.updateInventory();
+        });
     }
 
     public void oublierJoueur(UUID uuid) {
