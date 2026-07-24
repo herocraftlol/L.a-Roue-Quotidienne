@@ -16,6 +16,7 @@ import fr.fidelmobs.database.DatabaseManager;
 import fr.fidelmobs.database.TicketSyncTask;
 import fr.fidelmobs.listeners.AllyListener;
 import fr.fidelmobs.listeners.ArenaProtectionListener;
+import fr.fidelmobs.listeners.CrossServerSyncListener;
 import fr.fidelmobs.listeners.LoginListener;
 import fr.fidelmobs.managers.ArenaScoreboardManager;
 import fr.fidelmobs.managers.ArrowManager;
@@ -51,7 +52,41 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
     public void onEnable() {
         saveDefaultConfig();
 
-        this.playerDataManager = new PlayerDataManager(this);
+        // MySQL est nécessaire pour la boutique en argent réel ET/OU pour partager les
+        // données joueur (tickets, collection, points...) entre tous les serveurs Paper de
+        // la structure Velocity. On l'active dès que l'un des deux est demandé, et le
+        // PlayerDataManager passe en mode partagé UNIQUEMENT si multi-serveur.enabled est
+        // vrai (la boutique seule ne change pas où sont stockées les données joueur).
+        boolean boutiqueActivee = getConfig().getBoolean("boutique.enabled", false);
+        boolean multiServeurDemande = getConfig().getBoolean("multi-serveur.enabled", false);
+
+        if (boutiqueActivee || multiServeurDemande) {
+            this.databaseManager = new DatabaseManager(this);
+            try {
+                databaseManager.connect();
+                getLogger().info("Connexion MySQL établie.");
+            } catch (Exception e) {
+                getLogger().severe("Échec de connexion MySQL : " + e.getMessage()
+                        + " — boutique et/ou mode multi-serveur désactivés pour cette session"
+                        + " (repli sur les données joueur locales).");
+                databaseManager = null;
+            }
+        }
+
+        // Le PlayerDataManager ne passe en mode "partagé" que si multi-serveur.enabled est
+        // vrai ET que la connexion MySQL a réussi ; sinon comportement historique (YAML local),
+        // même si la boutique tourne par ailleurs sur sa propre connexion MySQL.
+        boolean modePartageEffectif = multiServeurDemande && databaseManager != null;
+        this.playerDataManager = modePartageEffectif
+                ? new PlayerDataManager(this, databaseManager)
+                : new PlayerDataManager(this);
+        if (multiServeurDemande && !modePartageEffectif) {
+            getLogger().warning("multi-serveur.enabled est à true mais la connexion MySQL a échoué : "
+                    + "les données joueur restent locales à ce serveur pour l'instant.");
+        } else if (modePartageEffectif) {
+            getLogger().info("Mode multi-serveur activé : données joueur partagées via MySQL.");
+        }
+
         this.allyListener = new AllyListener(this);
         this.arenaManager = new ArenaManager(this);
         this.kitManager = new KitManager(this);
@@ -69,6 +104,9 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new LoginListener(this), this);
         getServer().getPluginManager().registerEvents(allyListener, this);
         getServer().getPluginManager().registerEvents(arenaProtectionListener, this);
+        if (modePartageEffectif) {
+            getServer().getPluginManager().registerEvents(new CrossServerSyncListener(this), this);
+        }
 
         getCommand("streak").setExecutor(new StreakCommand(this));
         getCommand("roue").setExecutor(new RoueCommand(this));
@@ -87,21 +125,17 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
         getCommand("bloc").setExecutor(blocCommand);
         getCommand("bloc").setTabCompleter(blocCommand);
 
-        // Boutique en argent réel (achat de tickets sur le site web) : entièrement optionnelle,
-        // le reste du plugin fonctionne sans MySQL. Ne s'active que si explicitement demandé.
-        if (getConfig().getBoolean("boutique.enabled", false)) {
-            this.databaseManager = new DatabaseManager(this);
-            try {
-                databaseManager.connect();
-                long intervalle = Math.max(5, getConfig().getInt("boutique.sync-interval-seconds", 15)) * 20L;
-                getServer().getScheduler().runTaskTimerAsynchronously(this,
-                        new TicketSyncTask(this, databaseManager), intervalle, intervalle);
-                getLogger().info("Boutique de tickets (MySQL) activée.");
-            } catch (Exception e) {
-                getLogger().severe("Échec de connexion MySQL pour la boutique : " + e.getMessage()
-                        + " — la boutique en argent réel est désactivée pour cette session.");
-                databaseManager = null;
-            }
+        // Boutique en argent réel (achat de tickets sur le site web) : entièrement optionnelle.
+        // Réutilise la connexion MySQL déjà établie plus haut (partagée avec le mode
+        // multi-serveur si les deux sont actifs en même temps).
+        if (boutiqueActivee && databaseManager != null) {
+            long intervalle = Math.max(5, getConfig().getInt("boutique.sync-interval-seconds", 15)) * 20L;
+            getServer().getScheduler().runTaskTimerAsynchronously(this,
+                    new TicketSyncTask(this, databaseManager), intervalle, intervalle);
+            getLogger().info("Boutique de tickets (MySQL) activée.");
+        } else if (boutiqueActivee) {
+            getLogger().warning("boutique.enabled est à true mais la connexion MySQL a échoué : "
+                    + "la boutique en argent réel est désactivée pour cette session.");
         }
 
         getLogger().info("LoyaltyMobs activé.");

@@ -76,6 +76,25 @@ référence. Une fois activée :
 Aucune donnée de carte bancaire ne transite par le plugin ni par le micro-service : Stripe héberge
 lui-même la page de paiement.
 
+### Multi-serveur / structure Velocity (optionnel)
+Par défaut, chaque serveur Paper garde ses **propres** données joueur (tickets, collection de
+mobs, blocs débloqués, équipements, points PvP) dans un fichier YAML local
+(`playerdata/<uuid>.yml`) — un joueur qui change de serveur backend (survie → créatif...) ne
+retrouve rien de ce qu'il a sur l'autre.
+
+En passant `multi-serveur.enabled: true` dans `config.yml` (et en installant le **même** plugin
+avec la **même** config `mysql:` sur chaque serveur backend concerné), ces données sont stockées
+dans la base MySQL partagée à la place des fichiers locaux : elles sont chargées à la connexion du
+joueur et sauvegardées à sa déconnexion, donc identiques quel que soit le serveur de la structure
+sur lequel il joue. Indépendant de la boutique (`boutique.enabled`) : activable seul, avec, ou sans.
+
+Ce que ça couvre / ne couvre pas :
+- **Couvert** : tickets, série de connexions, collection de mobs/blocs/équipements/flèches/pouvoirs,
+  points de fidélité PvP, kills/morts.
+- **Pas couvert** : la zone d'arène PvP elle-même (définie par des coordonnées `/arenepvp pos1/pos2`
+  propres à un monde d'un serveur donné) reste forcément locale à chaque serveur où elle est
+  configurée séparément.
+
 ## Compilation
 
 Projet Maven standard utilisant le dépôt PaperMC. Sur une machine avec Maven et un accès internet

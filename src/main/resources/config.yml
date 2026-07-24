@@ -61,9 +61,26 @@ boutique:
   # faits depuis le site web (table pending_ticket_grants)
   sync-interval-seconds: 15
 
+# =========================================================
+#  Multi-serveur (structure Velocity) — ENTIEREMENT OPTIONNEL
+#  Par defaut (false), chaque serveur Paper garde ses PROPRES donnees joueur en local
+#  (fichiers YAML dans plugins/LoyaltyMobs/playerdata/), independantes d'un serveur a
+#  l'autre. Passe cette option a true UNIQUEMENT si tu veux que tickets, collection de
+#  mobs, blocs debloques, equipements, points PvP soient les MEMES quel que soit le
+#  serveur backend (survie, creatif, event...) sur lequel un joueur se connecte.
+#  Installe alors le meme plugin (avec la meme config MySQL ci-dessous) sur CHAQUE
+#  serveur backend qui doit partager ces donnees.
+#  Independant de la boutique : tu peux activer l'un sans l'autre, ou les deux ensemble
+#  (ils partagent alors la meme connexion MySQL).
+# =========================================================
+multi-serveur:
+  enabled: false
+
 mysql:
-  # Base MySQL partagee avec le micro-service du site web (website-node/).
-  # N'est utilisee QUE si boutique.enabled est a true ci-dessus.
+  # Base MySQL utilisee par la boutique (si boutique.enabled) ET/OU par le mode
+  # multi-serveur (si multi-serveur.enabled). Si tu actives le multi-serveur sur
+  # plusieurs serveurs Paper, ce bloc doit etre IDENTIQUE (memes host/database/user)
+  # sur chacun d'eux : c'est cette base commune qui fait le lien entre les serveurs.
   host: "127.0.0.1"
   port: 3306
   database: "loyaltymobs_shop"
