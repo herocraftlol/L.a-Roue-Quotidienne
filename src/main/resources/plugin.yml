@@ -1,9 +1,9 @@
 name: LoyaltyMobs
-version: '1.0.15'
+version: '1.0.18'
 main: fr.fidelmobs.LoyaltyMobsPlugin
 api-version: '1.21'
 author: Toi
-description: Fidelisation par connexions journalieres, roue de mobs/blocs/equipements a collectionner, et arene PvP.
+description: Fidelisation par connexions journalieres, roue de mobs/blocs/equipements/flèches a effet a collectionner, et arene PvP.
 
 commands:
   streak:

@@ -1,28 +1,34 @@
 # LoyaltyMobs
 
 Plugin Paper 1.21 de fidélisation par connexions journalières, avec collection permanente de
-mobs/blocs/équipements à la "roue" façon cartes à collectionner, et une arène PvP configurable
-avec ses propres règles. Boutique en argent réel optionnelle pour acheter des tickets de roue.
+mobs/blocs/équipements à la "roue" façon cartes à collectionner, **flèches à effet tactiques**,
+et une arène PvP configurable avec ses propres règles. Boutique en argent réel optionnelle pour
+acheter des tickets de roue.
 
 ## Fonctionnalités
 
-### Fidélisation
+### Système de roue (fidélisation)
 - **Connexion quotidienne** : série de jours consécutifs suivie automatiquement, avec distribution de
   tickets (`tickets-par-jour` + bonus de palier définis dans `config.yml`). Un rappel s'affiche à
   chaque connexion tant qu'il reste des tickets non utilisés.
 - **`/roue`** : consomme un ticket et donne une récompense de **chaque** catégorie à chaque lancer
-  (mob + bloc + équipement), affichées avec une mise en forme colorée selon la rareté et une petite
-  fanfare (son + titre à l'écran) pour les tirages épiques/légendaires. Le stuff de base (cuir/bois)
-  ne peut jamais s'obtenir sans enchantement.
+  (mob + bloc + équipement + flèches), affichées avec une mise en forme colorée selon la rareté et
+  une petite fanfare (son + titre à l'écran) pour les tirages épiques/légendaires. Le stuff de base
+  (cuir/bois) ne peut jamais s'obtenir sans enchantement.
   - **Mob** : un allié ajouté **définitivement** à la collection (voir `/armee` et `/invoquer`).
   - **Bloc** : débloque un type de bloc cubique utilisable comme bloc de construction en arène.
-  - **Équipement** : une pièce d'armure ou une épée (cuir → or → fer → diamant → netherite).
+  - **Équipement** : une pièce d'armure ou une épée (cuir → or → fer → diamant → netherite),
+    avec chance d'être enchantée.
+  - **Flèches à effet** : nouvelles ! Obtenez des flèches tactiques avec des effets de potion
+    (ralentissement, poison, affaiblissement, dégâts instantanés + foudre).
 - **`/streak`** : série actuelle et tickets disponibles.
 - **`/points [acheter]`** : points de fidélité PvP gagnés à chaque kill en arène
   (`arene.points-par-kill`). `/points acheter` échange `arene.cout-ticket-points` points contre un
   ticket de roue supplémentaire.
 - **`/acheterticket`** : envoie un lien cliquable vers la boutique en ligne pour acheter des tickets
   de roue avec de l'argent réel (optionnel, voir section Boutique ci-dessous).
+
+### Collection et invoquer
 - **`/armee`** : collection de mobs (`x2 Villager`, `x1 Zombie`...). La collection est **permanente** :
   invoquer un mob ne le retire jamais, chaque unité possédée a juste besoin de "recharger" après usage.
 - **`/invoquer <mob>`** : fait apparaître une unité disponible du mob choisi comme allié en arène.
@@ -31,8 +37,8 @@ avec ses propres règles. Boutique en argent réel optionnelle pour acheter des 
   invoquer plusieurs simultanément (chacun a son propre temps de recharge indépendant). Un allié
   n'attaque jamais son invocateur ni les alliés de celui-ci, et cible les autres joueurs à proximité.
 - **`/bloc liste`** / **`/bloc choisir <type>`** : consulter et changer son bloc de construction actif.
-- **`/equipement liste`** / **`/equipement equiper <numéro>`** : consulter sa collection d'armures/épées
-  et choisir manuellement ce qui est porté (sinon la meilleure pièce obtenue s'équipe automatiquement).
+- **`/equipement`** : consultez et équipez votre matériel PvP (armure, épée, **flèches à effet**).
+  Nouvelle interface de sélection pour équiper vos flèches tactiques préférées !
 
 ### Arène PvP
 - **`/arenepvp pos1`** et **`/arenepvp pos2`** *(admin, permission `loyaltymobs.admin`)* : définissent les
@@ -50,9 +56,14 @@ avec ses propres règles. Boutique en argent réel optionnelle pour acheter des 
   `arene.regen-bloc-secondes` (1s par défaut) jusqu'à revenir à 32.
 - **Kit PvP automatique** : à l'entrée dans la zone, le joueur passe en survie (son gamemode d'origine
   est restauré à la sortie), reçoit une épée (1er slot de la hotbar, remplacée par la meilleure épée
-  débloquée) et un item d'invocation d'allié (2e slot — clic droit pour ouvrir un menu listant sa
-  collection et invoquer directement). Rien de tout ça ne peut être drop, déplacé dans l'inventaire, ni
-  perdu en cas de mort ; tout est retiré proprement à la sortie de la zone.
+  débloquée), **un arc (4e slot)** pour tirer ses flèches à effet, **un item de sélection d'équipement
+  (avant-dernier slot)** pour choisir armure/épée/flèches, et un item d'invocation d'allié (2e slot —
+  clic droit pour ouvrir un menu listant sa collection et invoquer directement). Rien de tout ça ne peut
+  être drop, déplacé dans l'inventaire, ni perdu en cas de mort ; tout est retiré proprement à la sortie
+  de la zone.
+- **Arc avec flèches à effet** : le 4e slot de la hotbar contient un arc. Utilisez-le pour tirer vos
+  flèches tactiques collectées à la roue ! Cooldown de `arene.arc-cooldown-secondes` (3s par défaut)
+  entre chaque tir.
 - **Sidebar dédié**, visible uniquement dans la zone : points de fidélité, K/D (persistant), série de
   kills (killstreak) en cours et top 5 des scores des joueurs actuellement dans l'arène.
 - **`/classement [retirer]`** *(admin)* : invoque à sa position un hologramme (armor stands, sans
@@ -113,7 +124,8 @@ arene:
   regen-bloc-secondes: 1
   invocation-cooldown-secondes: 3600
   points-par-kill: 15
-  cout-ticket-points: 200
+  cout-ticket-points: 1500
+  arc-cooldown-secondes: 3
 duree-vie-allie-secondes: 600
 
 # Boutique en argent réel (optionnelle) — voir website-node/README.md
