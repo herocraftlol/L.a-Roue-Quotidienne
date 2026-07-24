@@ -81,8 +81,9 @@ public final class MobRegistry {
             }
         }
 
+        final MobRarity finalRarete = rareteTiree[0];
         List<EntityType> candidats = RARETE_PAR_MOB.entrySet().stream()
-                .filter(e -> e.getValue() == rareteTiree[0])
+                .filter(e -> e.getValue() == finalRarete)
                 .map(Map.Entry::getKey)
                 .toList();
 
@@ -103,17 +104,17 @@ public final class MobRegistry {
         if (poidsTotal <= 0) return tirerMobAleatoire();
 
         int tirage = RANDOM.nextInt(poidsTotal);
-        MobRarity rareteTiree = valeurs[min];
+        final MobRarity[] rareteTiree = {valeurs[min]};
         int cumul = 0;
         for (int i = min; i < valeurs.length; i++) {
             cumul += valeurs[i].getPoids();
             if (tirage < cumul) {
-                rareteTiree = valeurs[i];
+                rareteTiree[0] = valeurs[i];
                 break;
             }
         }
 
-        MobRarity finalRarete = rareteTiree;
+        final MobRarity finalRarete = rareteTiree[0];
         List<EntityType> candidats = RARETE_PAR_MOB.entrySet().stream()
                 .filter(e -> e.getValue() == finalRarete)
                 .map(Map.Entry::getKey)
