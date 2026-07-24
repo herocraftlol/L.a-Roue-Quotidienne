@@ -8,25 +8,31 @@ import fr.fidelmobs.data.PlayerDataManager;
 import fr.fidelmobs.managers.BlockSelectorInventoryHolder;
 import fr.fidelmobs.managers.GearSelectorInventoryHolder;
 import fr.fidelmobs.managers.InvocationInventoryHolder;
+import fr.fidelmobs.managers.PowerSelectorInventoryHolder;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -83,6 +89,7 @@ public class ArenaProtectionListener implements Listener {
             plugin.getInvocationManager().donnerItem(player);
             plugin.getBlockSelectorManager().donnerItem(player);
             plugin.getGearSelectorManager().donnerItem(player);
+            plugin.getPowerSelectorManager().donnerItem(player);
             plugin.getScoreboardManager().entrerEnArene(player);
             // Le changement de gamemode et les modifications d'inventaire dans le même tick
             // peuvent se désynchroniser côté client (le paquet de resync du gamemode écrase
@@ -96,6 +103,7 @@ public class ArenaProtectionListener implements Listener {
                 plugin.getInvocationManager().donnerItem(player);
                 plugin.getBlockSelectorManager().donnerItem(player);
                 plugin.getGearSelectorManager().donnerItem(player);
+                plugin.getPowerSelectorManager().donnerItem(player);
                 player.updateInventory();
             });
             player.sendMessage("§c§lVous entrez dans l'arène PvP !");
@@ -110,7 +118,9 @@ public class ArenaProtectionListener implements Listener {
             plugin.getInvocationManager().retirerItem(player);
             plugin.getBlockSelectorManager().retirerItem(player);
             plugin.getGearSelectorManager().retirerItem(player);
+            plugin.getPowerSelectorManager().retirerItem(player);
             plugin.getArrowManager().oublierJoueur(player.getUniqueId());
+            plugin.getPowerUseManager().oublierJoueur(player.getUniqueId());
             plugin.getScoreboardManager().sortirDeArene(player);
             player.updateInventory();
             player.sendMessage("§7Vous quittez l'arène PvP.");
@@ -263,6 +273,34 @@ public class ArenaProtectionListener implements Listener {
     }
 
     @EventHandler
+    public void onInteragirSelecteurPouvoir(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND) return; // évite un double déclenchement main + main secondaire
+        Action action = event.getAction();
+        if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) return;
+
+        Player player = event.getPlayer();
+        if (!estDansArene(player)) return;
+        if (!plugin.getPowerSelectorManager().estItemSelecteur(event.getItem())) return;
+
+        event.setCancelled(true);
+        plugin.getPowerSelectorManager().ouvrirMenu(player);
+    }
+
+    @EventHandler
+    public void onActiverPouvoir(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND) return; // évite un double déclenchement main + main secondaire
+        Action action = event.getAction();
+        if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) return;
+
+        Player player = event.getPlayer();
+        if (!estDansArene(player)) return;
+        if (!plugin.getPowerUseManager().estItemPouvoirActif(event.getItem())) return;
+
+        event.setCancelled(true);
+        plugin.getPowerUseManager().activer(player, event.getItem());
+    }
+
+    @EventHandler
     public void onTirArc(EntityShootBowEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
         if (!estDansArene(player)) return;
@@ -335,17 +373,44 @@ public class ArenaProtectionListener implements Listener {
     }
 
     @EventHandler
+    public void onClicMenuSelecteurPouvoir(InventoryClickEvent event) {
+        if (!(event.getInventory().getHolder() instanceof PowerSelectorInventoryHolder)) return;
+        event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+
+        ItemStack clique = event.getCurrentItem();
+        if (clique == null || !clique.hasItemMeta()) return;
+
+        Integer index = clique.getItemMeta().getPersistentDataContainer()
+                .get(Cles.POUVOIR_CHOIX_INDEX, PersistentDataType.INTEGER);
+        if (index == null) return;
+
+        player.closeInventory();
+        plugin.getPowerSelectorManager().choisir(player, index);
+    }
+
+    /**
+     * Vrai si cet item fait partie du matériel prêté en arène (kit verrouillé, charge de
+     * bloc, item d'invocation ou de sélection) et ne doit donc jamais pouvoir être perdu,
+     * déplacé, jeté ou échangé par le joueur.
+     */
+    private boolean estItemProtege(ItemStack item) {
+        if (item == null) return false;
+        return plugin.getKitManager().estKit(item)
+                || plugin.getBuildBlockManager().estItemCharge(item)
+                || plugin.getInvocationManager().estItemInvocation(item)
+                || plugin.getBlockSelectorManager().estItemSelecteur(item)
+                || plugin.getGearSelectorManager().estItemSelecteur(item)
+                || plugin.getPowerSelectorManager().estItemSelecteur(item)
+                || plugin.getPowerUseManager().estItemPouvoirActif(item);
+    }
+
+    @EventHandler
     public void onDropItem(PlayerDropItemEvent event) {
         Player player = event.getPlayer();
         if (!estDansArene(player)) return;
 
-        ItemStack drop = event.getItemDrop().getItemStack();
-        boolean itemDuKit = plugin.getKitManager().estKit(drop);
-        boolean itemCharge = plugin.getBuildBlockManager().estItemCharge(drop);
-        boolean itemInvocation = plugin.getInvocationManager().estItemInvocation(drop);
-        boolean itemSelecteur = plugin.getBlockSelectorManager().estItemSelecteur(drop);
-        boolean itemSelecteurEquipement = plugin.getGearSelectorManager().estItemSelecteur(drop);
-        if (itemDuKit || itemCharge || itemInvocation || itemSelecteur || itemSelecteurEquipement) {
+        if (estItemProtege(event.getItemDrop().getItemStack())) {
             event.setCancelled(true);
         }
     }
@@ -355,18 +420,45 @@ public class ArenaProtectionListener implements Listener {
         if (!(event.getWhoClicked() instanceof Player player)) return;
         if (!estDansArene(player)) return;
 
-        boolean clicSurKit = event.getCurrentItem() != null && (plugin.getKitManager().estKit(event.getCurrentItem())
-                || plugin.getBuildBlockManager().estItemCharge(event.getCurrentItem())
-                || plugin.getInvocationManager().estItemInvocation(event.getCurrentItem())
-                || plugin.getBlockSelectorManager().estItemSelecteur(event.getCurrentItem())
-                || plugin.getGearSelectorManager().estItemSelecteur(event.getCurrentItem()));
-        boolean curseurKit = event.getCursor() != null && (plugin.getKitManager().estKit(event.getCursor())
-                || plugin.getBuildBlockManager().estItemCharge(event.getCursor())
-                || plugin.getInvocationManager().estItemInvocation(event.getCursor())
-                || plugin.getBlockSelectorManager().estItemSelecteur(event.getCursor())
-                || plugin.getGearSelectorManager().estItemSelecteur(event.getCursor()));
+        if (estItemProtege(event.getCurrentItem()) || estItemProtege(event.getCursor())) {
+            event.setCancelled(true);
+        }
+    }
 
-        if (clicSurKit || curseurKit) {
+    /**
+     * Le glisser-déposer (InventoryDragEvent) répartit un item sur plusieurs slots en une
+     * seule action et n'est pas couvert par onClicInventaire (InventoryClickEvent) : sans
+     * ce blocage, on pourrait faire glisser un item du kit hors de son slot, ou recouvrir
+     * un slot verrouillé (ex. la flèche équipée) avec un autre item.
+     */
+    @EventHandler
+    public void onDragInventaire(InventoryDragEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        if (!estDansArene(player)) return;
+
+        if (estItemProtege(event.getOldCursor())) {
+            event.setCancelled(true);
+            return;
+        }
+
+        for (int slot : event.getRawSlots()) {
+            if (estItemProtege(event.getView().getItem(slot))) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+    }
+
+    /**
+     * Empêche le raccourci "F" (échange main/main secondaire) de sortir un item du kit
+     * (ex. la flèche équipée, glissée manuellement en main secondaire) de son slot verrouillé.
+     */
+    @EventHandler
+    public void onEchangeMainSecondaire(PlayerSwapHandItemsEvent event) {
+        Player player = event.getPlayer();
+        if (!estDansArene(player)) return;
+
+        if (estItemProtege(event.getMainHandItem()) || estItemProtege(event.getOffHandItem())) {
             event.setCancelled(true);
         }
     }
@@ -375,20 +467,49 @@ public class ArenaProtectionListener implements Listener {
     public void onMort(PlayerDeathEvent event) {
         Player victime = event.getEntity();
         if (!estDansArene(victime)) return;
-        Player tueur = victime.getKiller();
+
+        Player tueurDirect = victime.getKiller();
+        UUID tueurUuid = tueurDirect != null ? tueurDirect.getUniqueId() : null;
+        Player tueurPourMessage = tueurDirect;
+        boolean viaMobAllie = false;
+
+        // Si la victime n'a pas de tueur direct (pas tuée par un joueur), on regarde si le
+        // dernier coup vient d'un mob invoqué (ou d'une flèche tirée par ce mob) : dans ce
+        // cas, le kill et les points sont attribués au joueur propriétaire du mob, comme
+        // s'il avait tué lui-même.
+        if (tueurUuid == null) {
+            EntityDamageEvent derniereCause = victime.getLastDamageCause();
+            if (derniereCause instanceof EntityDamageByEntityEvent degatsParEntite) {
+                Entity source = degatsParEntite.getDamager();
+                if (source instanceof Projectile projectile && projectile.getShooter() instanceof Entity tireur) {
+                    source = tireur;
+                }
+                UUID proprietaire = plugin.getAllyListener().getProprietaire(source);
+                if (proprietaire != null) {
+                    tueurUuid = proprietaire;
+                    tueurPourMessage = plugin.getServer().getPlayer(proprietaire);
+                    viaMobAllie = true;
+                }
+            }
+        }
 
         PlayerDataManager data = plugin.getPlayerDataManager();
         data.ajouterMort(victime.getUniqueId());
         data.save(victime.getUniqueId());
-        if (tueur != null) {
-            data.ajouterKill(tueur.getUniqueId());
+        if (tueurUuid != null) {
+            data.ajouterKill(tueurUuid);
             int points = Math.max(0, plugin.getConfig().getInt("arene.points-par-kill", 15));
-            data.ajouterPoints(tueur.getUniqueId(), points);
-            data.save(tueur.getUniqueId());
-            tueur.sendMessage("§7+" + points + " points de fidélité §8(kill sur " + victime.getName() + ")");
+            data.ajouterPoints(tueurUuid, points);
+            data.save(tueurUuid);
+            if (tueurPourMessage != null) {
+                String contexte = viaMobAllie
+                        ? " §8(kill via ton allié invoqué sur " + victime.getName() + ")"
+                        : " §8(kill sur " + victime.getName() + ")";
+                tueurPourMessage.sendMessage("§7+" + points + " points de fidélité" + contexte);
+            }
         }
 
-        plugin.getScoreboardManager().enregistrerElimination(tueur, victime);
+        plugin.getScoreboardManager().enregistrerElimination(tueurPourMessage, victime);
         // Kills/morts/K-D viennent de changer : on rafraîchit l'hologramme de classement
         // s'il est actif, pour qu'il reste à jour sans intervention manuelle.
         plugin.getHologramManager().actualiser();
@@ -400,7 +521,9 @@ public class ArenaProtectionListener implements Listener {
                 || plugin.getBuildBlockManager().estItemCharge(item)
                 || plugin.getInvocationManager().estItemInvocation(item)
                 || plugin.getBlockSelectorManager().estItemSelecteur(item)
-                || plugin.getGearSelectorManager().estItemSelecteur(item));
+                || plugin.getGearSelectorManager().estItemSelecteur(item)
+                || plugin.getPowerSelectorManager().estItemSelecteur(item)
+                || plugin.getPowerUseManager().estItemPouvoirActif(item));
     }
 
     @EventHandler
@@ -411,5 +534,6 @@ public class ArenaProtectionListener implements Listener {
         plugin.getBuildBlockManager().sortirDeArene(event.getPlayer());
         plugin.getScoreboardManager().onDeconnexion(uuid);
         plugin.getArrowManager().oublierJoueur(uuid);
+        plugin.getPowerUseManager().oublierJoueur(uuid);
     }
 }

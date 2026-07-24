@@ -233,6 +233,27 @@ public class PlayerDataManager {
         get(uuid).set("fleche_equipee", index);
     }
 
+    // ---- Pouvoirs spéciaux (collection obtenue à la roue, catégorie "Pouvoir") ----
+
+    public List<String> getPouvoirs(UUID uuid) {
+        return new ArrayList<>(get(uuid).getStringList("pouvoirs"));
+    }
+
+    public int ajouterPouvoir(UUID uuid, String id) {
+        List<String> liste = getPouvoirs(uuid);
+        liste.add(id);
+        get(uuid).set("pouvoirs", liste);
+        return liste.size() - 1;
+    }
+
+    public int getIndexPouvoirEquipe(UUID uuid) {
+        return get(uuid).getInt("pouvoir_equipe", -1);
+    }
+
+    public void setIndexPouvoirEquipe(UUID uuid, int index) {
+        get(uuid).set("pouvoir_equipe", index);
+    }
+
     // ---- Statistiques PvP (kills / morts, persistantes pour le classement) ----
 
     public int getKills(UUID uuid) {

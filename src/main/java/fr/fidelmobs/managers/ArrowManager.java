@@ -9,6 +9,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.inventory.ItemFlag;
@@ -17,26 +18,70 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
  * Arc du kit PvP (4e slot de la hotbar) : tire la flèche à effet actuellement équipée par
  * le joueur (ou une flèche simple par défaut) sans jamais la consommer — au même titre que
  * l'armure/épée du kit, elle est prêtée pour la durée du combat en arène. Un temps de
- * recharge minimal est imposé entre deux tirs pour éviter le spam.
+ * recharge minimal est imposé entre deux tirs pour éviter le spam, et ce temps de recharge
+ * restant est affiché en direct (barre d'action, mise à jour plusieurs fois par seconde)
+ * jusqu'à ce que l'arc soit de nouveau prêt.
  */
 public class ArrowManager {
 
     public static final int SLOT_ARC = 3; // 4e slot de la barre d'accès rapide
     public static final int SLOT_FLECHE = 9; // 1re case de l'inventaire principal (sous la hotbar)
 
+    // Fréquence (en ticks) de rafraîchissement de l'affichage en direct de la recharge.
+    // 2 ticks (0,1s) donne un décompte fluide sans surcharger le serveur.
+    private static final long INTERVALLE_AFFICHAGE_TICKS = 2L;
+
     private final LoyaltyMobsPlugin plugin;
     private final Map<UUID, Long> prochainTirAutorise = new HashMap<>();
+    // Joueurs pour qui il reste à afficher le message "Arc prêt !" une fois la recharge terminée
+    private final Set<UUID> enAttenteMessagePret = new HashSet<>();
 
     public ArrowManager(LoyaltyMobsPlugin plugin) {
         this.plugin = plugin;
+        demarrerAffichageEnDirect();
+    }
+
+    /**
+     * Tâche répétitive qui met à jour la barre d'action de chaque joueur ayant tiré
+     * récemment, tant que son arc est en recharge, pour que le temps d'attente restant
+     * s'affiche en direct (et non plus seulement au moment d'un tir refusé).
+     */
+    private void demarrerAffichageEnDirect() {
+        plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
+            if (prochainTirAutorise.isEmpty()) return;
+            long maintenant = System.currentTimeMillis();
+            Iterator<Map.Entry<UUID, Long>> it = prochainTirAutorise.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<UUID, Long> entree = it.next();
+                UUID uuid = entree.getKey();
+                Player joueur = plugin.getServer().getPlayer(uuid);
+                if (joueur == null || !joueur.isOnline()) {
+                    it.remove();
+                    enAttenteMessagePret.remove(uuid);
+                    continue;
+                }
+
+                long resteMs = entree.getValue() - maintenant;
+                if (resteMs > 0) {
+                    joueur.sendActionBar(Component.text("⏳ Recharge de l'arc : "
+                                    + String.format("%.1f", resteMs / 1000.0) + "s")
+                            .color(NamedTextColor.RED));
+                } else if (enAttenteMessagePret.remove(uuid)) {
+                    joueur.sendActionBar(Component.text("✔ Arc prêt à tirer !").color(NamedTextColor.GREEN));
+                }
+            }
+        }, INTERVALLE_AFFICHAGE_TICKS, INTERVALLE_AFFICHAGE_TICKS);
     }
 
     private long cooldownMs() {
@@ -70,23 +115,29 @@ public class ArrowManager {
     }
 
     /**
-     * Place l'arc au slot 4 et la flèche actuellement équipée (ou une flèche simple par
-     * défaut) dans l'inventaire principal. Les deux sont verrouillés comme le reste du kit.
+     * Construit un exemplaire (amount=1) de la flèche actuellement équipée par le joueur,
+     * ou une flèche simple par défaut s'il n'en a aucune. Utilisé à la fois pour équiper
+     * le kit et pour la remettre en place après chaque tir (voir onTir).
      */
-    public void equiper(Player player) {
-        UUID uuid = player.getUniqueId();
+    private ItemStack construireFlecheEquipee(UUID uuid) {
         PlayerDataManager data = plugin.getPlayerDataManager();
-        KitManager kit = plugin.getKitManager();
-
-        player.getInventory().setItem(SLOT_ARC, kit.verrouiller(creerArc()));
-
         int index = data.getIndexFlecheEquipee(uuid);
         List<ItemStack> fleches = data.getFleches(uuid);
         ItemStack fleche = (index >= 0 && index < fleches.size())
                 ? fleches.get(index).clone()
                 : ArrowRegistry.flecheParDefaut();
         fleche.setAmount(1);
-        player.getInventory().setItem(SLOT_FLECHE, kit.verrouiller(fleche));
+        return fleche;
+    }
+
+    /**
+     * Place l'arc au slot 4 et la flèche actuellement équipée (ou une flèche simple par
+     * défaut) dans l'inventaire principal. Les deux sont verrouillés comme le reste du kit.
+     */
+    public void equiper(Player player) {
+        KitManager kit = plugin.getKitManager();
+        player.getInventory().setItem(SLOT_ARC, kit.verrouiller(creerArc()));
+        player.getInventory().setItem(SLOT_FLECHE, kit.verrouiller(construireFlecheEquipee(player.getUniqueId())));
     }
 
     public void retirer(Player player) {
@@ -95,6 +146,11 @@ public class ArrowManager {
         if (kit.estKit(arc)) player.getInventory().setItem(SLOT_ARC, null);
         ItemStack fleche = player.getInventory().getItem(SLOT_FLECHE);
         if (kit.estKit(fleche)) player.getInventory().setItem(SLOT_FLECHE, null);
+
+        // Le cooldown natif posé sur Material.BOW est global à ce type d'objet : on le
+        // réinitialise en sortant du kit pour ne pas gêner un arc vanilla que le joueur
+        // possèderait par ailleurs, une fois sorti de l'arène.
+        player.setCooldown(Material.BOW, 0);
     }
 
     /**
@@ -109,18 +165,60 @@ public class ArrowManager {
         long prochain = prochainTirAutorise.getOrDefault(player.getUniqueId(), 0L);
         if (maintenant < prochain) {
             event.setCancelled(true);
+
+            // Bug connu de Bukkit/Paper : annuler EntityShootBowEvent n'empêche PAS la
+            // flèche d'être lancée, car le projectile est déjà généré par le jeu avant que
+            // cet évènement ne soit appelé. Sans cette suppression explicite, le joueur
+            // pouvait donc quand même tirer "gratuitement" pendant la recharge, et le slot
+            // de la flèche se retrouvait dans un état incohérent juste après.
+            Entity projectile = event.getProjectile();
+            if (projectile != null) {
+                projectile.remove();
+            }
+
             long resteMs = prochain - maintenant;
             player.sendActionBar(Component.text("Recharge de l'arc : " + String.format("%.1f", resteMs / 1000.0) + "s")
                     .color(NamedTextColor.RED));
+
+            // Le client a pu retirer visuellement la flèche de la main de manière optimiste
+            // avant même la réponse du serveur : on force une resynchronisation de son slot
+            // pour être certain qu'elle reste bien affichée.
+            UUID uuidRefus = player.getUniqueId();
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                if (!player.isOnline()) return;
+                player.getInventory().setItem(SLOT_FLECHE, plugin.getKitManager().verrouiller(construireFlecheEquipee(uuidRefus)));
+                player.updateInventory();
+            });
             return;
         }
 
         prochainTirAutorise.put(player.getUniqueId(), maintenant + cooldownMs());
+        enAttenteMessagePret.add(player.getUniqueId());
         event.setConsumeItem(false);
         player.playSound(player.getLocation(), Sound.ENTITY_ARROW_SHOOT, 0.8f, 1.2f);
+
+        // Cooldown natif de l'objet (comme pour une perle de l'ender ou un bouclier) : le
+        // client grise l'arc et empêche tout redessin/tir tant qu'il n'est pas écoulé.
+        // C'est la protection principale contre un tir pendant le timer ; la vérification
+        // par horodatage ci-dessus reste un filet de sécurité côté serveur en complément.
+        player.setCooldown(Material.BOW, (int) Math.max(1, cooldownMs() / 50L));
+
+        // Filet de sécurité : l'enchantement Infinity ne fonctionne nativement qu'avec des
+        // flèches simples sans NBT, pas avec nos flèches à effet (nom, lore, données
+        // persistantes). Même avec setConsumeItem(false), certaines versions du jeu
+        // consomment quand même la flèche du slot dédié. On force donc sa réapparition,
+        // verrouillée, au tick suivant (après que le jeu ait fini de traiter le tir),
+        // pour qu'elle soit toujours tirable en permanence.
+        UUID uuid = player.getUniqueId();
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline()) return;
+            player.getInventory().setItem(SLOT_FLECHE, plugin.getKitManager().verrouiller(construireFlecheEquipee(uuid)));
+            player.updateInventory();
+        });
     }
 
     public void oublierJoueur(UUID uuid) {
         prochainTirAutorise.remove(uuid);
+        enAttenteMessagePret.remove(uuid);
     }
 }

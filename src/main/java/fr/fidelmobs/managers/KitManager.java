@@ -83,6 +83,7 @@ public class KitManager {
         }
 
         plugin.getArrowManager().equiper(player);
+        plugin.getPowerUseManager().equiper(player);
     }
 
     public void retirerKit(Player player) {
@@ -100,6 +101,7 @@ public class KitManager {
         if (estKit(arme)) player.getInventory().setItem(SLOT_ARME, null);
 
         plugin.getArrowManager().retirer(player);
+        plugin.getPowerUseManager().retirer(player);
     }
 
     public boolean estKit(ItemStack item) {

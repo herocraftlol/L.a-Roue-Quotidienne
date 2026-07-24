@@ -25,6 +25,8 @@ import fr.fidelmobs.managers.GearSelectorManager;
 import fr.fidelmobs.managers.HologramManager;
 import fr.fidelmobs.managers.InvocationManager;
 import fr.fidelmobs.managers.KitManager;
+import fr.fidelmobs.managers.PowerSelectorManager;
+import fr.fidelmobs.managers.PowerUseManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class LoyaltyMobsPlugin extends JavaPlugin {
@@ -41,6 +43,8 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
     private BlockSelectorManager blockSelectorManager;
     private GearSelectorManager gearSelectorManager;
     private ArrowManager arrowManager;
+    private PowerSelectorManager powerSelectorManager;
+    private PowerUseManager powerUseManager;
     private DatabaseManager databaseManager;
 
     @Override
@@ -59,6 +63,8 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
         this.blockSelectorManager = new BlockSelectorManager(this);
         this.gearSelectorManager = new GearSelectorManager(this);
         this.arrowManager = new ArrowManager(this);
+        this.powerSelectorManager = new PowerSelectorManager(this);
+        this.powerUseManager = new PowerUseManager(this);
 
         getServer().getPluginManager().registerEvents(new LoginListener(this), this);
         getServer().getPluginManager().registerEvents(allyListener, this);
@@ -164,5 +170,13 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
 
     public ArrowManager getArrowManager() {
         return arrowManager;
+    }
+
+    public PowerSelectorManager getPowerSelectorManager() {
+        return powerSelectorManager;
+    }
+
+    public PowerUseManager getPowerUseManager() {
+        return powerUseManager;
     }
 }

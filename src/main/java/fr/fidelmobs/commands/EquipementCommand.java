@@ -3,6 +3,7 @@ package fr.fidelmobs.commands;
 import fr.fidelmobs.LoyaltyMobsPlugin;
 import fr.fidelmobs.arena.ArrowRegistry;
 import fr.fidelmobs.arena.GearRegistry;
+import fr.fidelmobs.arena.PowerRegistry;
 import fr.fidelmobs.data.PlayerDataManager;
 import fr.fidelmobs.mobs.MobRarity;
 import org.bukkit.command.Command;
@@ -36,6 +37,10 @@ public class EquipementCommand implements CommandExecutor {
             return gererFleches(player, data, uuid, args);
         }
 
+        if (args.length > 0 && args[0].equalsIgnoreCase("pouvoirs")) {
+            return gererPouvoirs(player, data, uuid, args);
+        }
+
         List<ItemStack> equipements = data.getEquipements(uuid);
 
         if (args.length == 0 || args[0].equalsIgnoreCase("liste")) {
@@ -58,6 +63,7 @@ public class EquipementCommand implements CommandExecutor {
                 player.sendMessage("§7Utilise §f/equipement equiper <numéro> §7pour équiper une pièce.");
             }
             player.sendMessage("§7Utilise §f/equipement fleches §7pour gérer tes flèches à effet.");
+            player.sendMessage("§7Utilise §f/equipement pouvoirs §7pour gérer tes pouvoirs spéciaux.");
             player.sendMessage("§7Astuce : en arène, ouvre le menu d'équipement (avant-avant-dernier slot) pour tout gérer visuellement.");
             return true;
         }
@@ -94,7 +100,7 @@ public class EquipementCommand implements CommandExecutor {
             return true;
         }
 
-        player.sendMessage("§cUsage : /equipement <liste|equiper|fleches> [numéro]");
+        player.sendMessage("§cUsage : /equipement <liste|equiper|fleches|pouvoirs> [numéro]");
         return true;
     }
 
@@ -150,6 +156,62 @@ public class EquipementCommand implements CommandExecutor {
         }
 
         player.sendMessage("§cUsage : /equipement fleches <liste|equiper> [numéro]");
+        return true;
+    }
+
+    private boolean gererPouvoirs(Player player, PlayerDataManager data, UUID uuid, String[] args) {
+        List<String> pouvoirs = data.getPouvoirs(uuid);
+
+        if (args.length < 2 || args[1].equalsIgnoreCase("liste")) {
+            if (pouvoirs.isEmpty()) {
+                player.sendMessage("§7Tu n'as encore aucun pouvoir spécial. Utilise §f/roue §7pour en obtenir !");
+                return true;
+            }
+            int equipe = data.getIndexPouvoirEquipe(uuid);
+            player.sendMessage("§b=== Tes pouvoirs spéciaux (" + pouvoirs.size() + ") ===");
+            for (int i = 0; i < pouvoirs.size(); i++) {
+                String id = pouvoirs.get(i);
+                MobRarity rarete = PowerRegistry.getRarete(id);
+                player.sendMessage("§7#" + i + " " + rarete.getCouleur() + PowerRegistry.getNom(id)
+                        + " §8« " + rarete.getCouleur() + rarete.getLabel() + "§8 »"
+                        + (i == equipe ? " §a(équipé)" : ""));
+                String effet = PowerRegistry.decrireEffet(id);
+                if (effet != null) {
+                    player.sendMessage("     §8✦ " + effet);
+                }
+            }
+            player.sendMessage("§7Utilise §f/equipement pouvoirs equiper <numéro> §7pour changer de pouvoir.");
+            return true;
+        }
+
+        if (args[1].equalsIgnoreCase("equiper")) {
+            if (args.length < 3) {
+                player.sendMessage("§cUsage : /equipement pouvoirs equiper <numéro>");
+                return true;
+            }
+            int index;
+            try {
+                index = Integer.parseInt(args[2]);
+            } catch (NumberFormatException e) {
+                player.sendMessage("§cNuméro invalide.");
+                return true;
+            }
+            if (index < 0 || index >= pouvoirs.size()) {
+                player.sendMessage("§cCe numéro ne correspond à aucun pouvoir de ta collection.");
+                return true;
+            }
+            data.setIndexPouvoirEquipe(uuid, index);
+            data.save(uuid);
+            player.sendMessage("§aPouvoir équipé mis à jour.");
+
+            if (plugin.getArenaProtectionListener().estDansArene(player)) {
+                plugin.getPowerUseManager().equiper(player);
+                player.updateInventory();
+            }
+            return true;
+        }
+
+        player.sendMessage("§cUsage : /equipement pouvoirs <liste|equiper> [numéro]");
         return true;
     }
 }

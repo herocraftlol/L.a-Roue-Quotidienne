@@ -71,18 +71,19 @@ public final class MobRegistry {
         }
 
         int tirage = RANDOM.nextInt(poidsTotal);
-        final MobRarity[] rareteTiree = {MobRarity.COMMUN};
+        MobRarity rareteTiree = MobRarity.COMMUN;
         int cumul = 0;
         for (MobRarity r : MobRarity.values()) {
             cumul += r.getPoids();
             if (tirage < cumul) {
-                rareteTiree[0] = r;
+                rareteTiree = r;
                 break;
             }
         }
+        final MobRarity rareteFinale = rareteTiree;
 
         List<EntityType> candidats = RARETE_PAR_MOB.entrySet().stream()
-                .filter(e -> e.getValue() == rareteTiree[0])
+                .filter(e -> e.getValue() == rareteFinale)
                 .map(Map.Entry::getKey)
                 .toList();
 

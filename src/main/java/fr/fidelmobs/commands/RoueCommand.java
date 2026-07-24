@@ -4,6 +4,7 @@ import fr.fidelmobs.LoyaltyMobsPlugin;
 import fr.fidelmobs.arena.ArrowRegistry;
 import fr.fidelmobs.arena.BlockRegistry;
 import fr.fidelmobs.arena.GearRegistry;
+import fr.fidelmobs.arena.PowerRegistry;
 import fr.fidelmobs.data.PlayerDataManager;
 import fr.fidelmobs.mobs.MobRarity;
 import fr.fidelmobs.mobs.MobRegistry;
@@ -26,8 +27,10 @@ public class RoueCommand implements CommandExecutor {
     private static final String SEPARATEUR = "§8§m§l                                                            ";
     private static final Random RANDOM = new Random();
 
-    // Délai (en ticks) entre chaque étape de l'animation de révélation des récompenses
-    private static final int DELAI_ENTRE_ETAPES = 22;
+    // Délai (en ticks, 20 ticks = 1s) entre chaque étape de l'animation de révélation des
+    // récompenses. Volontairement allongé pour laisser au joueur le temps de lire le nom
+    // de la récompense et sa rareté avant que le titre suivant n'apparaisse.
+    private static final int DELAI_ENTRE_ETAPES = 50;
 
     private final LoyaltyMobsPlugin plugin;
 
@@ -62,16 +65,18 @@ public class RoueCommand implements CommandExecutor {
         Material bloc = BlockRegistry.tirerBlocAleatoire(data.getBlocsDebloques(uuid));
         ItemStack equip = GearRegistry.genererObjetAleatoire();
         ItemStack fleche = ArrowRegistry.genererFlecheAleatoire();
+        PowerRegistry.PowerDefinition pouvoir = PowerRegistry.tirerPouvoirAleatoire();
 
         MobRarity rMob = MobRegistry.getRarete(mob);
         MobRarity rBloc = BlockRegistry.getRarete(bloc);
         MobRarity rEquip = MobRarity.values()[GearRegistry.getRarete(equip)];
         MobRarity rFleche = MobRarity.values()[ArrowRegistry.getRarete(fleche)];
+        MobRarity rPouvoir = pouvoir.rarete();
 
-        // ---- Garantie : au moins une récompense RARE ou mieux parmi les 4 catégories ----
-        MobRarity meilleure = meilleureRarete(rMob, rBloc, rEquip, rFleche);
+        // ---- Garantie : au moins une récompense RARE ou mieux parmi les 5 catégories ----
+        MobRarity meilleure = meilleureRarete(rMob, rBloc, rEquip, rFleche, rPouvoir);
         if (meilleure.ordinal() < MobRarity.RARE.ordinal()) {
-            int forcee = RANDOM.nextInt(4);
+            int forcee = RANDOM.nextInt(5);
             switch (forcee) {
                 case 0 -> {
                     mob = MobRegistry.tirerMobAleatoire(MobRarity.RARE.ordinal());
@@ -85,12 +90,16 @@ public class RoueCommand implements CommandExecutor {
                     equip = GearRegistry.genererObjetAleatoire(MobRarity.RARE.ordinal());
                     rEquip = MobRarity.values()[GearRegistry.getRarete(equip)];
                 }
-                default -> {
+                case 3 -> {
                     fleche = ArrowRegistry.genererFlecheAleatoire(MobRarity.RARE.ordinal());
                     rFleche = MobRarity.values()[ArrowRegistry.getRarete(fleche)];
                 }
+                default -> {
+                    pouvoir = PowerRegistry.tirerPouvoirAleatoire(MobRarity.RARE.ordinal());
+                    rPouvoir = pouvoir.rarete();
+                }
             }
-            meilleure = meilleureRarete(rMob, rBloc, rEquip, rFleche);
+            meilleure = meilleureRarete(rMob, rBloc, rEquip, rFleche, rPouvoir);
         }
 
         player.sendMessage(" ");
@@ -105,6 +114,7 @@ public class RoueCommand implements CommandExecutor {
         etapes.add(new Etape("▣ Bloc", appliquerBloc(player, data, uuid, bloc, rBloc), rBloc));
         etapes.add(new Etape("⚔ Équip", appliquerEquipement(player, data, uuid, equip, rEquip), rEquip));
         etapes.add(new Etape("➶ Flèche", appliquerFleche(player, data, uuid, fleche, rFleche), rFleche));
+        etapes.add(new Etape("✪ Pouvoir", appliquerPouvoir(player, data, uuid, pouvoir, rPouvoir), rPouvoir));
 
         player.sendMessage(" ");
         player.sendMessage(SEPARATEUR);
@@ -112,9 +122,18 @@ public class RoueCommand implements CommandExecutor {
 
         data.save(uuid);
 
+        // Si le joueur est déjà en arène et qu'une pièce d'équipement/flèche vient d'être
+        // équipée automatiquement (meilleure rareté), on rafraîchit immédiatement son kit
+        // pour qu'il puisse s'en servir tout de suite (flèche tirable en permanence dès
+        // qu'elle est équipée, arme/armure à jour) sans devoir ressortir/rentrer en arène.
+        if (plugin.getArenaProtectionListener().estDansArene(player)) {
+            plugin.getKitManager().appliquerKit(player);
+            player.updateInventory();
+        }
+
         // ---- Phase 3 : animation (titres + sons) révélant chaque récompense, puis fanfare finale ----
         player.playSound(player.getLocation(), Sound.BLOCK_ENCHANTMENT_TABLE_USE, 0.8f, 1f);
-        player.sendTitle("§b§l✦ ROUE DE LA FIDÉLITÉ ✦", "§7Découverte des récompenses...", 5, 15, 5);
+        player.sendTitle("§b§l✦ ROUE DE LA FIDÉLITÉ ✦", "§7Découverte des récompenses...", 8, 32, 10);
         animerRecompenses(player, etapes, meilleure);
 
         return true;
@@ -188,6 +207,31 @@ public class RoueCommand implements CommandExecutor {
         return nom;
     }
 
+    private String appliquerPouvoir(Player player, PlayerDataManager data, UUID uuid,
+                                     PowerRegistry.PowerDefinition pouvoir, MobRarity rarete) {
+        int rareteIndex = rarete.ordinal();
+        int index = data.ajouterPouvoir(uuid, pouvoir.id());
+
+        afficherLigne(player, "✪ Pouvoir", rarete.getCouleur() + "§l" + pouvoir.nom(), rarete);
+        String effet = PowerRegistry.decrireEffet(pouvoir.id());
+        if (effet != null) {
+            player.sendMessage("  §8✦ " + effet);
+        }
+
+        int indexActuel = data.getIndexPouvoirEquipe(uuid);
+        List<String> pouvoirs = data.getPouvoirs(uuid);
+        int rareteActuelle = indexActuel >= 0 && indexActuel < pouvoirs.size()
+                ? PowerRegistry.getRarete(pouvoirs.get(indexActuel)).ordinal() : -1;
+
+        if (indexActuel < 0 || rareteIndex >= rareteActuelle) {
+            data.setIndexPouvoirEquipe(uuid, index);
+            player.sendMessage("  §aÉquipé automatiquement !");
+        } else {
+            player.sendMessage("  §7Utilise le sélecteur de pouvoirs (arène, 6e slot) §7pour l'équiper à la place.");
+        }
+        return pouvoir.nom();
+    }
+
     /**
      * Ligne de récompense uniforme : puce et cadre colorés selon la rareté, pour que les
      * meilleurs tirages sautent immédiatement aux yeux dans le chat.
@@ -211,12 +255,14 @@ public class RoueCommand implements CommandExecutor {
      * de chacune), puis termine sur une fanfare finale reprenant la meilleure rareté obtenue.
      */
     private void animerRecompenses(Player player, List<Etape> etapes, MobRarity meilleure) {
-        int delai = 20; // laisse le titre d'intro (phase 3) se terminer avant la première étape
+        int delai = 35; // laisse le titre d'intro (phase 3) se terminer avant la première étape
         for (Etape etape : etapes) {
             plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
                 if (!player.isOnline()) return;
                 String sousTitre = etape.nomAffiche() + " §8« " + etape.rarete().getCouleur() + etape.rarete().getLabel() + "§8 »";
-                player.sendTitle(etape.rarete().getCouleur() + "§l" + etape.categorie(), sousTitre, 3, 18, 5);
+                // fadeIn 5, stay 45 (2,25s), fadeOut 10 : bien plus lisible que l'ancien
+                // enchaînement rapide, surtout pour les noms de récompense les plus longs.
+                player.sendTitle(etape.rarete().getCouleur() + "§l" + etape.categorie(), sousTitre, 5, 45, 10);
                 jouerSonEtape(player, etape.rarete());
             }, delai);
             delai += DELAI_ENTRE_ETAPES;
@@ -225,7 +271,7 @@ public class RoueCommand implements CommandExecutor {
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             if (!player.isOnline()) return;
             jouerFanfare(player, meilleure);
-        }, delai + 5);
+        }, delai + 10);
     }
 
     /**
@@ -249,11 +295,11 @@ public class RoueCommand implements CommandExecutor {
     private void jouerFanfare(Player player, MobRarity meilleure) {
         switch (meilleure) {
             case LEGENDAIRE -> {
-                player.sendTitle(meilleure.getCouleur() + "§l★ LÉGENDAIRE ★", "§eQuelle chance !", 5, 60, 15);
+                player.sendTitle(meilleure.getCouleur() + "§l★ LÉGENDAIRE ★", "§eQuelle chance !", 8, 90, 20);
                 player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
             }
             case EPIQUE -> {
-                player.sendTitle(meilleure.getCouleur() + "§l✦ Épique ✦", "", 5, 40, 10);
+                player.sendTitle(meilleure.getCouleur() + "§l✦ Épique ✦", "", 8, 60, 15);
                 player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1f, 0.8f);
             }
             case RARE -> player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.7f, 1.3f);

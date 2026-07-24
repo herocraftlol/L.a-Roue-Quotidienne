@@ -37,6 +37,11 @@ arene:
   # Temps de recharge minimum entre deux tirs de l'arc du kit (secondes)
   arc-cooldown-secondes: 3
 
+  # Temps de recharge des pouvoirs spéciaux (secondes), PARTAGÉ entre tous les pouvoirs :
+  # peu importe lequel est équipé/utilisé, il faut attendre ce délai avant de pouvoir
+  # réutiliser un pouvoir (5e slot de la hotbar, choisi via le 6e slot)
+  pouvoir-cooldown-secondes: 300
+
 # Duree de vie maximale d'un mob allie invoque en secondes (0 = illimite tant qu'il ne meurt pas)
 duree-vie-allie-secondes: 600
 
