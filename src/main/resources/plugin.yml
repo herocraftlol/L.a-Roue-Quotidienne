@@ -1,5 +1,5 @@
 name: LoyaltyMobs
-version: '1.0.0'
+version: '1.0.22'
 main: fr.fidelmobs.LoyaltyMobsPlugin
 api-version: '1.21'
 author: Toi
@@ -38,6 +38,10 @@ commands:
   acheterticket:
     description: Donne un lien vers la boutique en ligne pour acheter des tickets de roue avec de l'argent reel.
     usage: /acheterticket
+  adminticket:
+    description: "[Admin] Ajoute ou retire des tickets de roue a un joueur (en ligne ou non)."
+    usage: /adminticket <ajouter|retirer> <joueur> <montant>
+    permission: loyaltymobs.admin
 
 permissions:
   loyaltymobs.use:

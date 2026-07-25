@@ -61,19 +61,8 @@ public class TicketSyncTask implements Runnable {
         if (aTraiter.isEmpty()) return;
 
         for (Grant grant : aTraiter) {
-            // "Réclame" la ligne avant de créditer quoi que ce soit : si LoyaltyMobs tourne
-            // sur plusieurs serveurs backend de la structure Velocity (multi-serveur.enabled),
-            // chaque instance lance ce cycle indépendamment sur la même table. Sans cette
-            // étape, deux serveurs pourraient tous les deux lire la même ligne "non traitée"
-            // avant que l'un des deux ait eu le temps de la marquer, et créditer le même achat
-            // deux fois. L'UPDATE ... WHERE processed = 0 est atomique côté MySQL : seule la
-            // toute première instance à l'exécuter obtient 1 ligne affectée, les autres 0.
-            if (!reclamer(grant.id())) {
-                continue; // déjà pris en charge par une autre instance entre-temps
-            }
-
             // Créditer les tickets et sauvegarder doit se faire sur le thread principal
-            // (accès disque/API Bukkit pour prévenir le joueur s'il est en ligne).
+            // (accès disque + API Bukkit pour prévenir le joueur s'il est en ligne).
             Bukkit.getScheduler().runTask(plugin, () -> {
                 plugin.getPlayerDataManager().addTickets(grant.uuid(), grant.tickets());
                 plugin.getPlayerDataManager().save(grant.uuid());
@@ -84,23 +73,19 @@ public class TicketSyncTask implements Runnable {
                             + " ticket(s) de roue§7. Utilise §f/roue §7pour les lancer !");
                 }
             });
+
+            marquerTraite(grant.id());
         }
     }
 
-    /**
-     * Marque atomiquement une ligne comme traitée, uniquement si elle ne l'était pas déjà.
-     * @return true si CETTE instance vient de la réclamer (donc doit créditer les tickets),
-     *         false si une autre instance l'a déjà réclamée entre-temps.
-     */
-    private boolean reclamer(int id) {
+    private void marquerTraite(int id) {
         try (Connection conn = databaseManager.getConnection();
              PreparedStatement stmt = conn.prepareStatement(
-                     "UPDATE pending_ticket_grants SET processed = 1 WHERE id = ? AND processed = 0")) {
+                     "UPDATE pending_ticket_grants SET processed = 1 WHERE id = ?")) {
             stmt.setInt(1, id);
-            return stmt.executeUpdate() == 1;
+            stmt.executeUpdate();
         } catch (SQLException e) {
-            plugin.getLogger().warning("Impossible de réclamer l'achat de tickets #" + id + " : " + e.getMessage());
-            return false;
+            plugin.getLogger().warning("Impossible de marquer l'achat de tickets #" + id + " comme traité : " + e.getMessage());
         }
     }
 }

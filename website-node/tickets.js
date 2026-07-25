@@ -1,18 +1,23 @@
-const fetch = require('node-fetch');
+const crypto = require('crypto');
 const { pool } = require('./db');
 
 /**
- * Recupere l'UUID (avec tirets) d'un joueur a partir de son pseudo.
- * Le joueur doit s'etre connecte au moins une fois sur un compte Mojang valide.
+ * Calcule l'UUID "offline" d'un pseudo, exactement comme le fait Velocity/Paper
+ * sur ce réseau : UUID de type 3, basé sur un hash MD5 de "OfflinePlayer:<pseudo>".
+ *
+ * IMPORTANT (vérifié en conditions réelles) : sur ce réseau, MEME les comptes
+ * premium reçoivent cet UUID offline (Velocity tourne en online-mode=false sans
+ * vérification Mojang) — inutile donc d'interroger l'API Mojang, ça ne
+ * correspondrait à rien côté serveur. Si un jour un vrai plugin d'auth hybride
+ * est mis en place (donnant le vrai UUID Mojang aux comptes premium vérifiés),
+ * il faudra réintroduire une résolution Mojang -> repli offline comme avant.
  */
-async function getUuidFromUsername(username) {
-  const res = await fetch(`https://api.mojang.com/users/profiles/minecraft/${encodeURIComponent(username)}`);
-  if (!res.ok) {
-    throw new Error(`Joueur introuvable: ${username}`);
-  }
-  const data = await res.json();
-  const raw = data.id;
-  return `${raw.slice(0, 8)}-${raw.slice(8, 12)}-${raw.slice(12, 16)}-${raw.slice(16, 20)}-${raw.slice(20)}`;
+function getUuidFromUsername(username) {
+  const hash = crypto.createHash('md5').update(`OfflinePlayer:${username}`, 'utf8').digest();
+  hash[6] = (hash[6] & 0x0f) | 0x30; // version 3 (name-based, MD5)
+  hash[8] = (hash[8] & 0x3f) | 0x80; // variant RFC 4122
+  const hex = hash.toString('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 /**

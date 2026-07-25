@@ -1,8 +1,6 @@
 package fr.fidelmobs.data;
 
-import fr.fidelmobs.database.DatabaseManager;
 import org.bukkit.Material;
-import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.EquipmentSlot;
@@ -11,7 +9,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.IOException;
-import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,46 +19,18 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
 
-/**
- * Stocke/charge les données joueur (tickets, collection, points...). Deux modes, choisis
- * au démarrage selon {@code multi-serveur.enabled} dans le config :
- * <ul>
- *     <li><b>Local (par défaut)</b> : un fichier YAML par joueur dans {@code playerdata/},
- *     propre à ce serveur — comportement historique, aucun MySQL requis.</li>
- *     <li><b>Partagé (multi-serveur)</b> : le même YAML (identique en contenu) est stocké
- *     dans une table MySQL commune à tous les serveurs Paper de la structure Velocity, chargé
- *     à la connexion du joueur (voir {@link fr.fidelmobs.listeners.LoginListener}) et
- *     sauvegardé à sa déconnexion — un joueur retrouve exactement les mêmes tickets, la même
- *     collection, etc. quel que soit le serveur backend sur lequel il se connecte.</li>
- * </ul>
- * Dans les deux cas, l'API publique de cette classe (getTickets, ajouterMob...) est identique :
- * aucun autre fichier du plugin n'a besoin de savoir quel mode est actif.
- */
 public class PlayerDataManager {
 
     private final JavaPlugin plugin;
     private final File dossier;
-    private final DatabaseManager databaseManager;
-    private final boolean modePartage;
     private final Map<UUID, YamlConfiguration> cache = new HashMap<>();
 
     public PlayerDataManager(JavaPlugin plugin) {
-        this(plugin, null);
-    }
-
-    /**
-     * @param databaseManager non-null pour activer le mode partagé (multi-serveur.enabled: true
-     *                        et connexion MySQL établie avec succès) ; {@code null} pour rester
-     *                        en mode local (comportement historique, fichiers YAML).
-     */
-    public PlayerDataManager(JavaPlugin plugin, DatabaseManager databaseManager) {
         this.plugin = plugin;
         this.dossier = new File(plugin.getDataFolder(), "playerdata");
         if (!dossier.exists()) {
             dossier.mkdirs();
         }
-        this.databaseManager = databaseManager;
-        this.modePartage = databaseManager != null;
     }
 
     private File fichier(UUID uuid) {
@@ -70,93 +39,20 @@ public class PlayerDataManager {
 
     public YamlConfiguration get(UUID uuid) {
         return cache.computeIfAbsent(uuid, id -> {
-            // En mode partagé, la donnée devrait déjà avoir été préchargée en cache par
-            // chargerDepuisBase() lors de AsyncPlayerPreLoginEvent. Ce repli synchrone ne sert
-            // que pour les cas non couverts par ce hook (ex: commande console sur un joueur
-            // jamais réellement connu par ce process) et évite de renvoyer null.
-            if (modePartage) {
-                try {
-                    String yaml = databaseManager.chargerDonneesJoueur(id);
-                    YamlConfiguration conf = new YamlConfiguration();
-                    if (yaml != null && !yaml.isBlank()) {
-                        conf.loadFromString(yaml);
-                    }
-                    return conf;
-                } catch (SQLException | InvalidConfigurationException e) {
-                    plugin.getLogger().log(Level.WARNING,
-                            "Impossible de charger les données MySQL de " + id + ", données vides utilisées.", e);
-                    return new YamlConfiguration();
-                }
-            }
             File f = fichier(id);
-            return YamlConfiguration.loadConfiguration(f);
+            YamlConfiguration conf = YamlConfiguration.loadConfiguration(f);
+            return conf;
         });
-    }
-
-    /**
-     * Précharge en cache les données d'un joueur depuis MySQL (mode partagé uniquement).
-     * À appeler depuis un contexte déjà asynchrone (AsyncPlayerPreLoginEvent) pour que
-     * {@link #get(UUID)} n'ait jamais besoin de bloquer le thread principal ensuite.
-     * Ne fait rien en mode local.
-     */
-    public void chargerDepuisBase(UUID uuid) {
-        if (!modePartage) return;
-        try {
-            String yaml = databaseManager.chargerDonneesJoueur(uuid);
-            YamlConfiguration conf = new YamlConfiguration();
-            if (yaml != null && !yaml.isBlank()) {
-                conf.loadFromString(yaml);
-            }
-            synchronized (cache) {
-                cache.put(uuid, conf);
-            }
-        } catch (SQLException | InvalidConfigurationException e) {
-            plugin.getLogger().log(Level.WARNING,
-                    "Impossible de charger les données MySQL de " + uuid + " à la connexion.", e);
-        }
-    }
-
-    /**
-     * Retire un joueur du cache mémoire (mode partagé uniquement, à appeler après
-     * sauvegarde à la déconnexion) pour forcer un rechargement à jour s'il se reconnecte
-     * sur un autre serveur de la structure.
-     */
-    public void decharger(UUID uuid) {
-        if (!modePartage) return;
-        synchronized (cache) {
-            cache.remove(uuid);
-        }
-    }
-
-    public boolean isModePartage() {
-        return modePartage;
     }
 
     public void save(UUID uuid) {
         YamlConfiguration conf = cache.get(uuid);
         if (conf == null) return;
-        if (modePartage) {
-            try {
-                databaseManager.sauvegarderDonneesJoueur(uuid, conf.saveToString());
-            } catch (SQLException e) {
-                plugin.getLogger().log(Level.WARNING, "Impossible de sauvegarder en MySQL les données de " + uuid, e);
-            }
-            return;
-        }
         try {
             conf.save(fichier(uuid));
         } catch (IOException e) {
             plugin.getLogger().log(Level.WARNING, "Impossible de sauvegarder les données de " + uuid, e);
         }
-    }
-
-    /**
-     * Alias de {@link #save(UUID)}, à utiliser explicitement depuis un contexte déjà
-     * asynchrone (ex: juste avant {@link #decharger(UUID)} à la déconnexion) — même
-     * comportement, seulement pour la lisibilité des appelants.
-     */
-    public void sauvegarderAsync(UUID uuid) {
-        save(uuid);
     }
 
     // ---- Série de connexions ----
@@ -187,6 +83,19 @@ public class PlayerDataManager {
 
     public void addTickets(UUID uuid, int montant) {
         get(uuid).set("tickets", getTickets(uuid) + montant);
+    }
+
+    /**
+     * Retire jusqu'à {@code montant} tickets au joueur (utilisé par la commande admin).
+     * Ne descend jamais sous 0 : si le joueur en possède moins que le montant demandé,
+     * seuls les tickets réellement possédés sont retirés. Retourne le nombre réellement
+     * retiré, pour que la commande puisse en informer précisément l'administrateur.
+     */
+    public int retirerTickets(UUID uuid, int montant) {
+        int solde = getTickets(uuid);
+        int retires = Math.min(solde, Math.max(0, montant));
+        get(uuid).set("tickets", solde - retires);
+        return retires;
     }
 
     public boolean consommerTicket(UUID uuid) {
@@ -391,14 +300,6 @@ public class PlayerDataManager {
      * les classements du hologramme, y compris pour les joueurs hors ligne).
      */
     public List<UUID> getToutesLesUUID() {
-        if (modePartage) {
-            try {
-                return databaseManager.listerUuidConnues();
-            } catch (SQLException e) {
-                plugin.getLogger().log(Level.WARNING, "Impossible de lister les joueurs connus en MySQL.", e);
-                return new ArrayList<>();
-            }
-        }
         List<UUID> resultat = new ArrayList<>();
         File[] fichiers = dossier.listFiles((dir, nom) -> nom.endsWith(".yml"));
         if (fichiers != null) {
