@@ -32,7 +32,7 @@ public final class Cles {
     // Pouvoirs spéciaux (collection obtenue à la roue, catégorie "Pouvoir")
     // Sélecteur de pouvoir (GUI, avant-avant-avant-dernier slot de la hotbar, 6e sur 9)
     public static final NamespacedKey POUVOIR_SELECTEUR = new NamespacedKey("fidelmobs", "pouvoir_selecteur");
-    public static final NamespacedKey POUVOIR_CHOIX_INDEX = new NamespacedKey("fidelmobs", "pouvoir_choix_index");
+    public static final NamespacedKey POUVOIR_CHOIX_ID = new NamespacedKey("fidelmobs", "pouvoir_choix_id");
     // Item actif représentant le pouvoir actuellement équipé (5e slot de la hotbar)
     public static final NamespacedKey POUVOIR_ACTIF = new NamespacedKey("fidelmobs", "pouvoir_actif");
     public static final NamespacedKey POUVOIR_ID = new NamespacedKey("fidelmobs", "pouvoir_id");

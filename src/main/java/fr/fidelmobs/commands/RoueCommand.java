@@ -209,8 +209,7 @@ public class RoueCommand implements CommandExecutor {
 
     private String appliquerPouvoir(Player player, PlayerDataManager data, UUID uuid,
                                      PowerRegistry.PowerDefinition pouvoir, MobRarity rarete) {
-        int rareteIndex = rarete.ordinal();
-        int index = data.ajouterPouvoir(uuid, pouvoir.id());
+        data.ajouterPouvoir(uuid, pouvoir.id());
 
         afficherLigne(player, "✪ Pouvoir", rarete.getCouleur() + "§l" + pouvoir.nom(), rarete);
         String effet = PowerRegistry.decrireEffet(pouvoir.id());
@@ -218,13 +217,14 @@ public class RoueCommand implements CommandExecutor {
             player.sendMessage("  §8✦ " + effet);
         }
 
-        int indexActuel = data.getIndexPouvoirEquipe(uuid);
-        List<String> pouvoirs = data.getPouvoirs(uuid);
-        int rareteActuelle = indexActuel >= 0 && indexActuel < pouvoirs.size()
-                ? PowerRegistry.getRarete(pouvoirs.get(indexActuel)).ordinal() : -1;
+        String actuel = data.getPouvoirEquipe(uuid);
+        boolean deja = pouvoir.id().equals(actuel);
+        int rareteActuelle = actuel != null ? PowerRegistry.getRarete(actuel).ordinal() : -1;
 
-        if (indexActuel < 0 || rareteIndex >= rareteActuelle) {
-            data.setIndexPouvoirEquipe(uuid, index);
+        if (deja) {
+            player.sendMessage("  §7Tu possèdes maintenant une charge supplémentaire de ce pouvoir !");
+        } else if (actuel == null || rarete.ordinal() >= rareteActuelle) {
+            data.setPouvoirEquipe(uuid, pouvoir.id());
             player.sendMessage("  §aÉquipé automatiquement !");
         } else {
             player.sendMessage("  §7Utilise le sélecteur de pouvoirs (arène, 6e slot) §7pour l'équiper à la place.");

@@ -33,6 +33,10 @@ avec ses propres règles. Boutique en argent réel optionnelle pour acheter des 
 - **`/bloc liste`** / **`/bloc choisir <type>`** : consulter et changer son bloc de construction actif.
 - **`/equipement liste`** / **`/equipement equiper <numéro>`** : consulter sa collection d'armures/épées
   et choisir manuellement ce qui est porté (sinon la meilleure pièce obtenue s'équipe automatiquement).
+- **Pouvoirs spéciaux** : la roue peut aussi octroyer des pouvoirs spéciaux (vitesse, saut, force, etc.)
+  avec leur propre temps de recharge. Comme pour les mobs, chaque copie obtenue à la roue ajoute une
+  charge supplémentaire — utilisez plusieurs fois le même pouvoir avant qu'il ne doive recharger.
+  Équipez un pouvoir via le 6e slot de la hotbar et activez-le depuis le 5e slot.
 
 ### Arène PvP
 - **`/arenepvp pos1`** et **`/arenepvp pos2`** *(admin, permission `loyaltymobs.admin`)* : définissent les

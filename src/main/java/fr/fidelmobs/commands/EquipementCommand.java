@@ -12,8 +12,11 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class EquipementCommand implements CommandExecutor {
 
@@ -160,47 +163,45 @@ public class EquipementCommand implements CommandExecutor {
     }
 
     private boolean gererPouvoirs(Player player, PlayerDataManager data, UUID uuid, String[] args) {
-        List<String> pouvoirs = data.getPouvoirs(uuid);
+        Map<String, Integer> pouvoirs = data.getPouvoirsPossedes(uuid);
 
         if (args.length < 2 || args[1].equalsIgnoreCase("liste")) {
             if (pouvoirs.isEmpty()) {
                 player.sendMessage("§7Tu n'as encore aucun pouvoir spécial. Utilise §f/roue §7pour en obtenir !");
                 return true;
             }
-            int equipe = data.getIndexPouvoirEquipe(uuid);
+            String equipe = data.getPouvoirEquipe(uuid);
             player.sendMessage("§b=== Tes pouvoirs spéciaux (" + pouvoirs.size() + ") ===");
-            for (int i = 0; i < pouvoirs.size(); i++) {
-                String id = pouvoirs.get(i);
+            List<String> tries = pouvoirs.keySet().stream()
+                    .sorted(Comparator.comparing((String id) -> PowerRegistry.getRarete(id).ordinal()).reversed())
+                    .collect(Collectors.toList());
+            for (String id : tries) {
                 MobRarity rarete = PowerRegistry.getRarete(id);
-                player.sendMessage("§7#" + i + " " + rarete.getCouleur() + PowerRegistry.getNom(id)
-                        + " §8« " + rarete.getCouleur() + rarete.getLabel() + "§8 »"
-                        + (i == equipe ? " §a(équipé)" : ""));
+                int disponibles = data.getUnitesDisponiblesPouvoir(uuid, id);
+                player.sendMessage("§7" + rarete.getCouleur() + PowerRegistry.getNom(id)
+                        + " §8« " + rarete.getCouleur() + rarete.getLabel() + "§8 » §7x" + pouvoirs.get(id)
+                        + " §7(" + disponibles + " dispo)" + (id.equals(equipe) ? " §a(équipé)" : "")
+                        + " §8[" + id + "]");
                 String effet = PowerRegistry.decrireEffet(id);
                 if (effet != null) {
                     player.sendMessage("     §8✦ " + effet);
                 }
             }
-            player.sendMessage("§7Utilise §f/equipement pouvoirs equiper <numéro> §7pour changer de pouvoir.");
+            player.sendMessage("§7Utilise §f/equipement pouvoirs equiper <id> §7pour changer de pouvoir (id entre crochets ci-dessus).");
             return true;
         }
 
         if (args[1].equalsIgnoreCase("equiper")) {
             if (args.length < 3) {
-                player.sendMessage("§cUsage : /equipement pouvoirs equiper <numéro>");
+                player.sendMessage("§cUsage : /equipement pouvoirs equiper <id>");
                 return true;
             }
-            int index;
-            try {
-                index = Integer.parseInt(args[2]);
-            } catch (NumberFormatException e) {
-                player.sendMessage("§cNuméro invalide.");
+            String id = args[2].toLowerCase();
+            if (data.getNombrePouvoir(uuid, id) <= 0) {
+                player.sendMessage("§cTu ne possèdes pas ce pouvoir.");
                 return true;
             }
-            if (index < 0 || index >= pouvoirs.size()) {
-                player.sendMessage("§cCe numéro ne correspond à aucun pouvoir de ta collection.");
-                return true;
-            }
-            data.setIndexPouvoirEquipe(uuid, index);
+            data.setPouvoirEquipe(uuid, id);
             data.save(uuid);
             player.sendMessage("§aPouvoir équipé mis à jour.");
 
@@ -211,7 +212,7 @@ public class EquipementCommand implements CommandExecutor {
             return true;
         }
 
-        player.sendMessage("§cUsage : /equipement pouvoirs <liste|equiper> [numéro]");
+        player.sendMessage("§cUsage : /equipement pouvoirs <liste|equiper> [id]");
         return true;
     }
 }

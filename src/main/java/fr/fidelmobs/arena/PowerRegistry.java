@@ -30,8 +30,8 @@ import java.util.Random;
 /**
  * Pouvoirs spéciaux obtenus à la roue (catégorie "Pouvoir") : classés par rareté comme le
  * reste du plugin, ils s'équipent via le sélecteur dédié (avant-avant-avant-dernier slot de
- * la hotbar, 6e sur 9) et s'utilisent depuis le 5e slot, avec un temps de recharge partagé
- * entre tous les pouvoirs (voir {@link fr.fidelmobs.managers.PowerUseManager}).
+ * la hotbar, 6e sur 9) et s'utilisent depuis le 5e slot. Chaque pouvoir a son propre temps
+ * de recharge, indépendant des autres (voir {@link fr.fidelmobs.managers.PowerUseManager}).
  */
 public final class PowerRegistry {
 
@@ -399,7 +399,7 @@ public final class PowerRegistry {
         if (def != null) lore.addAll(def.lore());
         lore.add("");
         lore.add("§7Clic droit pour activer.");
-        lore.add("§7Recharge partagée : 5 minutes.");
+        lore.add("§7Recharge propre à ce pouvoir : 5 minutes par charge.");
         meta.setLore(lore);
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         meta.getPersistentDataContainer().set(Cles.POUVOIR_ACTIF, PersistentDataType.BYTE, (byte) 1);

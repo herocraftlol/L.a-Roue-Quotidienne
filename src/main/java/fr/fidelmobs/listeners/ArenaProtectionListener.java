@@ -25,6 +25,7 @@ import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityShootBowEvent;
+import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
@@ -74,6 +75,10 @@ public class ArenaProtectionListener implements Listener {
             joueursDansArene.add(player.getUniqueId());
             modeAvantArene.put(player.getUniqueId(), player.getGameMode());
             player.setGameMode(GameMode.SURVIVAL);
+            // Barre de faim toujours pleine en arène (voir aussi onChangementFaim ci-dessous
+            // qui empêche toute perte ultérieure pendant le combat)
+            player.setFoodLevel(20);
+            player.setSaturation(20f);
             try {
                 plugin.getKitManager().appliquerKit(player);
             } catch (Exception e) {
@@ -180,6 +185,20 @@ public class ArenaProtectionListener implements Listener {
         if (plugin.getArenaManager().estDansArene(player.getLocation())) {
             event.setCancelled(true);
         }
+    }
+
+    /**
+     * La barre de faim reste pleine en permanence dans l'arène : ni le sprint, ni le combat,
+     * ni le temps qui passe ne doivent l'entamer, pour ne pas gêner le PvP.
+     */
+    @EventHandler
+    public void onChangementFaim(FoodLevelChangeEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        if (!estDansArene(player)) return;
+
+        event.setCancelled(true);
+        player.setFoodLevel(20);
+        player.setSaturation(20f);
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -381,12 +400,12 @@ public class ArenaProtectionListener implements Listener {
         ItemStack clique = event.getCurrentItem();
         if (clique == null || !clique.hasItemMeta()) return;
 
-        Integer index = clique.getItemMeta().getPersistentDataContainer()
-                .get(Cles.POUVOIR_CHOIX_INDEX, PersistentDataType.INTEGER);
-        if (index == null) return;
+        String id = clique.getItemMeta().getPersistentDataContainer()
+                .get(Cles.POUVOIR_CHOIX_ID, PersistentDataType.STRING);
+        if (id == null) return;
 
         player.closeInventory();
-        plugin.getPowerSelectorManager().choisir(player, index);
+        plugin.getPowerSelectorManager().choisir(player, id);
     }
 
     /**

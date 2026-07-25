@@ -4,6 +4,7 @@ import fr.fidelmobs.Cles;
 import fr.fidelmobs.LoyaltyMobsPlugin;
 import fr.fidelmobs.arena.PowerRegistry;
 import fr.fidelmobs.data.PlayerDataManager;
+import fr.fidelmobs.mobs.MobRarity;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -16,12 +17,19 @@ import org.bukkit.persistence.PersistentDataType;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Item donné dans l'arène (avant-avant-avant-dernier slot de la hotbar, 6e sur 9) pour
  * ouvrir un menu regroupant tous les pouvoirs spéciaux obtenus à la roue et en équiper un,
  * qui apparaît alors utilisable au 5e slot (voir {@link PowerUseManager}).
+ *
+ * Chaque pouvoir a ses propres charges (une par copie obtenue à la roue) et son propre temps
+ * de recharge, totalement indépendant des autres : obtenir plusieurs fois le même pouvoir
+ * permet de l'utiliser plusieurs fois de suite avant de devoir attendre, et utiliser un
+ * pouvoir n'affecte jamais la disponibilité d'un autre pouvoir possédé.
  */
 public class PowerSelectorManager {
 
@@ -41,7 +49,10 @@ public class PowerSelectorManager {
                 "§7Clic droit pour choisir le pouvoir",
                 "§7à utiliser parmi ta collection.",
                 "§7Le pouvoir choisi s'active ensuite",
-                "§7avec le 5e slot de ta hotbar."
+                "§7avec le 5e slot de ta hotbar.",
+                "§7Chaque pouvoir a ses propres charges",
+                "§7et sa propre recharge, indépendantes",
+                "§7des autres pouvoirs possédés."
         ));
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         meta.getPersistentDataContainer().set(Cles.POUVOIR_SELECTEUR, PersistentDataType.BYTE, (byte) 1);
@@ -68,28 +79,27 @@ public class PowerSelectorManager {
     public void ouvrirMenu(Player player) {
         PlayerDataManager data = plugin.getPlayerDataManager();
         UUID uuid = player.getUniqueId();
-        List<String> pouvoirs = data.getPouvoirs(uuid);
+        Map<String, Integer> pouvoirs = data.getPouvoirsPossedes(uuid);
 
         if (pouvoirs.isEmpty()) {
             player.sendMessage("§7Tu n'as encore aucun pouvoir spécial. Utilise §f/roue §7pour en obtenir !");
             return;
         }
 
-        int nbLignes = Math.min(6, Math.max(1, (pouvoirs.size() - 1) / 9 + 1));
+        List<String> tries = pouvoirs.keySet().stream()
+                .sorted(Comparator.comparing((String id) -> PowerRegistry.getRarete(id).ordinal())
+                        .reversed()
+                        .thenComparing(id -> id))
+                .collect(Collectors.toList());
+
+        int taille = Math.min(54, Math.max(9, ((tries.size() - 1) / 9 + 1) * 9));
         PowerSelectorInventoryHolder holder = new PowerSelectorInventoryHolder();
-        Inventory inv = Bukkit.createInventory(holder, nbLignes * 9, "§b✦ Pouvoirs spéciaux");
+        Inventory inv = Bukkit.createInventory(holder, taille, "§b✦ Pouvoirs spéciaux");
         holder.setInventory(inv);
 
-        // Triés par rareté décroissante pour que les plus puissants sautent aux yeux
-        List<Integer> indices = new ArrayList<>();
-        for (int i = 0; i < pouvoirs.size(); i++) indices.add(i);
-        indices.sort(Comparator
-                .comparing((Integer i) -> PowerRegistry.getRarete(pouvoirs.get(i)).ordinal())
-                .reversed());
-
-        int equipe = data.getIndexPouvoirEquipe(uuid);
-        for (int i : indices) {
-            inv.addItem(creerIcone(pouvoirs.get(i), i, i == equipe));
+        String equipe = data.getPouvoirEquipe(uuid);
+        for (String id : tries) {
+            inv.addItem(creerIcone(player, id, pouvoirs.get(id), id.equals(equipe)));
         }
 
         player.openInventory(inv);
@@ -99,16 +109,15 @@ public class PowerSelectorManager {
      * Traite un clic sur une icône du menu : équipe le pouvoir correspondant, qui apparaît
      * ensuite au 5e slot de la hotbar (dans l'arène) prêt à être activé.
      */
-    public void choisir(Player player, int index) {
+    public void choisir(Player player, String id) {
         PlayerDataManager data = plugin.getPlayerDataManager();
         UUID uuid = player.getUniqueId();
-        List<String> pouvoirs = data.getPouvoirs(uuid);
-        if (index < 0 || index >= pouvoirs.size()) return;
+        if (data.getNombrePouvoir(uuid, id) <= 0) return;
 
-        data.setIndexPouvoirEquipe(uuid, index);
+        data.setPouvoirEquipe(uuid, id);
         data.save(uuid);
-        player.sendMessage("§aPouvoir équipé : " + PowerRegistry.getRarete(pouvoirs.get(index)).getCouleur()
-                + PowerRegistry.getNom(pouvoirs.get(index)));
+        player.sendMessage("§aPouvoir équipé : " + PowerRegistry.getRarete(id).getCouleur()
+                + PowerRegistry.getNom(id));
 
         if (plugin.getArenaProtectionListener().estDansArene(player)) {
             plugin.getPowerUseManager().equiper(player);
@@ -116,15 +125,39 @@ public class PowerSelectorManager {
         }
     }
 
-    private ItemStack creerIcone(String id, int index, boolean equipe) {
+    private ItemStack creerIcone(Player player, String id, int nombre, boolean equipe) {
+        PlayerDataManager data = plugin.getPlayerDataManager();
+        int disponibles = data.getUnitesDisponiblesPouvoir(player.getUniqueId(), id);
+        MobRarity rarete = PowerRegistry.getRarete(id);
+
         ItemStack icone = PowerRegistry.construireIcone(id);
         ItemMeta meta = icone.getItemMeta();
-        List<String> lore = new ArrayList<>(meta.getLore() != null ? meta.getLore() : List.of());
+        List<String> lore = new ArrayList<>(meta.hasLore() ? meta.getLore() : List.of());
+        lore.add("");
+        lore.add("§7Copies possédées : " + rarete.getCouleur() + nombre);
+        if (disponibles > 0) {
+            lore.add("§aCharges disponibles : " + disponibles + "/" + nombre);
+        } else {
+            long prochaine = data.getProchaineDisponibilitePouvoir(player.getUniqueId(), id);
+            String attente = prochaine > 0 ? formatDuree(prochaine - System.currentTimeMillis()) : "bientôt";
+            lore.add("§cToutes les charges sont en recharge");
+            lore.add("§7Prochaine dans §e" + attente);
+        }
         lore.add("");
         lore.add(equipe ? "§aPouvoir actuellement équipé" : "§eClique pour équiper !");
         meta.setLore(lore);
-        meta.getPersistentDataContainer().set(Cles.POUVOIR_CHOIX_INDEX, PersistentDataType.INTEGER, index);
+        meta.getPersistentDataContainer().set(Cles.POUVOIR_CHOIX_ID, PersistentDataType.STRING, id);
         icone.setItemMeta(meta);
         return icone;
+    }
+
+    private String formatDuree(long ms) {
+        long totalSecondes = Math.max(0, ms / 1000);
+        long minutes = totalSecondes / 60;
+        long secondes = totalSecondes % 60;
+        if (minutes > 0) {
+            return minutes + " min " + secondes + " s";
+        }
+        return secondes + " s";
     }
 }

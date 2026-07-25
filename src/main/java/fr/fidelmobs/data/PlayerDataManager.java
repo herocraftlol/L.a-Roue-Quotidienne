@@ -247,24 +247,88 @@ public class PlayerDataManager {
     }
 
     // ---- Pouvoirs spéciaux (collection obtenue à la roue, catégorie "Pouvoir") ----
+    // Système de charges par pouvoir (comme les mobs invoqués) : si un pouvoir est obtenu
+    // plusieurs fois, il peut être réutilisé autant de fois que de copies possédées avant
+    // de devoir attendre une recharge. Chaque pouvoir a son propre temps de recharge,
+    // totalement indépendant des autres pouvoirs équipés/possédés.
 
-    public List<String> getPouvoirs(UUID uuid) {
-        return new ArrayList<>(get(uuid).getStringList("pouvoirs"));
+    private String cheminPouvoir(String id) {
+        return "pouvoirs_possedes." + id;
     }
 
-    public int ajouterPouvoir(UUID uuid, String id) {
-        List<String> liste = getPouvoirs(uuid);
-        liste.add(id);
-        get(uuid).set("pouvoirs", liste);
-        return liste.size() - 1;
+    public int getNombrePouvoir(UUID uuid, String id) {
+        return get(uuid).getInt(cheminPouvoir(id), 0);
     }
 
-    public int getIndexPouvoirEquipe(UUID uuid) {
-        return get(uuid).getInt("pouvoir_equipe", -1);
+    public void ajouterPouvoir(UUID uuid, String id) {
+        get(uuid).set(cheminPouvoir(id), getNombrePouvoir(uuid, id) + 1);
     }
 
-    public void setIndexPouvoirEquipe(UUID uuid, int index) {
-        get(uuid).set("pouvoir_equipe", index);
+    /** Tous les pouvoirs possédés (id -> nombre de copies), les copies à 0 sont exclues. */
+    public Map<String, Integer> getPouvoirsPossedes(UUID uuid) {
+        Map<String, Integer> resultat = new HashMap<>();
+        YamlConfiguration conf = get(uuid);
+        if (conf.contains("pouvoirs_possedes")) {
+            for (String cle : conf.getConfigurationSection("pouvoirs_possedes").getKeys(false)) {
+                int n = conf.getInt("pouvoirs_possedes." + cle, 0);
+                if (n > 0) {
+                    resultat.put(cle, n);
+                }
+            }
+        }
+        return resultat;
+    }
+
+    public String getPouvoirEquipe(UUID uuid) {
+        return get(uuid).getString("pouvoir_equipe");
+    }
+
+    public void setPouvoirEquipe(UUID uuid, String id) {
+        get(uuid).set("pouvoir_equipe", id);
+    }
+
+    // ---- Cooldowns de pouvoirs (par pouvoir, sur le même principe que les cooldowns
+    // d'invocation : un pouvoir n'est jamais perdu, mais chaque copie possédée ne peut être
+    // réutilisée qu'après son propre temps de recharge) ----
+
+    private String cheminCooldownPouvoir(String id) {
+        return "pouvoir_cooldowns." + id;
+    }
+
+    public List<Long> getCooldownsActifsPouvoir(UUID uuid, String id) {
+        List<Long> bruts = get(uuid).getLongList(cheminCooldownPouvoir(id));
+        long maintenant = System.currentTimeMillis();
+        List<Long> actifs = new ArrayList<>();
+        for (long t : bruts) {
+            if (t > maintenant) actifs.add(t);
+        }
+        if (actifs.size() != bruts.size()) {
+            get(uuid).set(cheminCooldownPouvoir(id), actifs);
+        }
+        return actifs;
+    }
+
+    /** Nombre de copies de ce pouvoir actuellement disponibles à l'utilisation. */
+    public int getUnitesDisponiblesPouvoir(UUID uuid, String id) {
+        int possedees = getNombrePouvoir(uuid, id);
+        int enRecharge = getCooldownsActifsPouvoir(uuid, id).size();
+        return Math.max(0, possedees - enRecharge);
+    }
+
+    /** Timestamp (epoch millis) auquel la prochaine copie redeviendra disponible, ou -1. */
+    public long getProchaineDisponibilitePouvoir(UUID uuid, String id) {
+        long minimum = -1;
+        for (long t : getCooldownsActifsPouvoir(uuid, id)) {
+            if (minimum == -1 || t < minimum) minimum = t;
+        }
+        return minimum;
+    }
+
+    /** Consomme une charge de ce pouvoir : part en recharge sans jamais être retiré de la collection. */
+    public void utiliserUnitePouvoir(UUID uuid, String id, long dureeCooldownMs) {
+        List<Long> actuels = new ArrayList<>(getCooldownsActifsPouvoir(uuid, id));
+        actuels.add(System.currentTimeMillis() + dureeCooldownMs);
+        get(uuid).set(cheminCooldownPouvoir(id), actuels);
     }
 
     // ---- Statistiques PvP (kills / morts, persistantes pour le classement) ----
