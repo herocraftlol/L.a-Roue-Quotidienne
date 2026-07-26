@@ -146,10 +146,10 @@ public final class BlockRegistry {
                 break;
             }
         }
-        final MobRarity finalRareteTiree = rareteTiree;
 
+        final MobRarity finalRarete = rareteTiree;
         List<Material> candidats = RARETE_PAR_BLOC.entrySet().stream()
-                .filter(e -> e.getValue() == finalRareteTiree)
+                .filter(e -> e.getValue() == finalRarete)
                 .map(Map.Entry::getKey)
                 .toList();
 

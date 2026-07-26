@@ -1,8 +1,52 @@
-# LoyaltyMobs
+# 🎰 L.a Roue Quotidienne
 
-Plugin Paper 1.21 de fidélisation par connexions journalières, avec collection permanente de
-mobs/blocs/équipements à la "roue" façon cartes à collectionner, et une arène PvP configurable
-avec ses propres règles. Boutique en argent réel optionnelle pour acheter des tickets de roue.
+Plugin Minecraft Paper 1.21 de fidélisation des joueurs avec un système de roue quotidienne, collection de mobs alliés, blocs de construction et équipements. Comprend également une **arène PvP compétitive** avec des mécaniques de jeu uniques.
+
+## ✨ Fonctionnalités Principales
+
+### 🎡 Système de Roue Quotidienne
+- **Connexion quotidienne** avec suivi automatique des séries de jours consécutifs
+- **Tickets quotidiens** + bonus de palier pour les longues séries (3, 7, 14, 30 jours)
+- **Récompenses triples** à chaque tour de roue :
+  - 🧟 **Mobs alliés** - Invoquez vos mobs en combat pour vous assister
+  - 🧱 **Blocs de construction** - Créez des structures défensives en arène
+  - ⚔️ **Équipements** - Améliorez votre armure et armes progressivement
+- **Système de rareté** - Du commun au légendaire avec effets visuels et sonores
+- **Pouvoirs spéciaux** - Vitesse, saut, force avec charges multiples
+
+### 🏟️ Arène PvP Compétitive
+- **Zone PvP dédiée** configurable par les administrateurs
+- **Blocs de construction** en offhand avec régénération automatique
+- **Mobs alliés** invoquables en combat (cooldown par unité)
+- **Sidebar personnalisé** avec stats, K/D et killstreaks
+- **Classements holographiques** affichant les tops kills/morts/K-D
+- **Chute mortelle** sous la plateforme pour plus de compétition
+- **Protection des blocs** - Aucun griefing possible
+
+### 📦 Collection Permanente
+- **Armée de mobs** - Collectez et invitez des alliés permanents
+- **Inventaire d'équipements** - Équipez vos meilleures pièces manuellement
+- **Système de powers** - Multiples charges pour chaque pouvoir obtenu
+- **Progression visible** - Tout votre loot est sauvegardé et affiché
+
+### 🛒 Boutique (Optionnelle)
+- Achat de tickets avec de l'argent réel via Stripe
+- Synchronisation automatique avec le serveur Minecraft
+- Aucune donnée bancaire stockée (géré par Stripe)
+
+## 🎮 Commandes
+
+| Commande | Description |
+|----------|-------------|
+| `/roue` | Lance la roue et obtenez vos récompenses |
+| `/armee` | Affiche votre collection de mobs alliés |
+| `/invoquer <mob>` | Invoque un mob allié en combat |
+| `/bloc liste/choisir` | Gérez vos blocs de construction |
+| `/equipement liste/equiper` | Gérez votre collection d'armures/armes |
+| `/streak` | Consultez votre série de connexions |
+| `/points` | Affiche vos points de fidélité PvP |
+| `/classement` | (Admin) Affiche les rankings holographiques |
+| `/arenepvp pos1/pos2` | (Admin) Définit la zone d'arène |
 
 ## Fonctionnalités
 
