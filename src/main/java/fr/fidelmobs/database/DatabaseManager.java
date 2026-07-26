@@ -10,10 +10,11 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 /**
- * Connexion à la base MySQL partagée avec le site web (boutique de tickets payants).
- * Ce module ne s'active que si {@code boutique.enabled: true} dans le config — le reste
- * du plugin fonctionne entièrement sans MySQL (données joueurs en YAML local), la
- * boutique en argent réel est une fonctionnalité additionnelle optionnelle.
+ * Connexion à la base MySQL partagée avec le site web. Utilisée par DEUX fonctionnalités
+ * optionnelles indépendantes : la boutique de tickets payants ET l'arène de stratégie web
+ * (comptes, liaison, armées). Ce module ne s'active que si {@code boutique.enabled: true}
+ * OU {@code strategie-web.enabled: true} dans le config — le reste du plugin fonctionne
+ * entièrement sans MySQL (données joueurs en YAML local).
  */
 public class DatabaseManager {
 
@@ -69,10 +70,39 @@ public class DatabaseManager {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""";
 
+        // Ecrite par le plugin (/lier), lue puis supprimee par le site web une fois le code
+        // consomme. Permet de lier un compte du site a un compte Minecraft (premium OU crack :
+        // on ne verifie jamais rien aupres de Mojang, seulement l'UUID connu du serveur).
+        String webLinkCodes = """
+            CREATE TABLE IF NOT EXISTS web_link_codes (
+                code CHAR(6) PRIMARY KEY,
+                uuid VARCHAR(36) NOT NULL,
+                pseudo VARCHAR(16) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP NOT NULL,
+                INDEX idx_uuid (uuid)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""";
+
+        // Ecrite PERIODIQUEMENT par le plugin (ArmySyncTask), lue en LECTURE SEULE par le site
+        // web pour composer les armees de la bataille de strategie. Le site n'ecrit jamais ici :
+        // la collection reelle du joueur reste en YAML local (source de verite).
+        String webPlayerArmy = """
+            CREATE TABLE IF NOT EXISTS web_player_army (
+                uuid VARCHAR(36) PRIMARY KEY,
+                pseudo VARCHAR(16) NOT NULL,
+                mobs_json TEXT NOT NULL,
+                points INT DEFAULT 0,
+                kills INT DEFAULT 0,
+                morts INT DEFAULT 0,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""";
+
         try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
             stmt.execute(pendingTicketGrants);
+            stmt.execute(webLinkCodes);
+            stmt.execute(webPlayerArmy);
         } catch (SQLException e) {
-            plugin.getLogger().severe("Impossible de créer les tables MySQL de la boutique : " + e.getMessage());
+            plugin.getLogger().severe("Impossible de créer les tables MySQL partagées : " + e.getMessage());
         }
     }
 
