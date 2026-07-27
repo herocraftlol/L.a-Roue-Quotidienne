@@ -79,7 +79,7 @@ public class DatabaseManager {
                 uuid VARCHAR(36) NOT NULL,
                 pseudo VARCHAR(16) NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                expires_at TIMESTAMP NOT NULL,
+                expires_at DATETIME NOT NULL,
                 INDEX idx_uuid (uuid)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""";
 
