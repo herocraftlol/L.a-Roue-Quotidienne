@@ -9,17 +9,14 @@ import fr.fidelmobs.commands.BlocCommand;
 import fr.fidelmobs.commands.ClassementCommand;
 import fr.fidelmobs.commands.EquipementCommand;
 import fr.fidelmobs.commands.InvoquerCommand;
-import fr.fidelmobs.commands.LierCommand;
 import fr.fidelmobs.commands.PointsCommand;
 import fr.fidelmobs.commands.RoueCommand;
 import fr.fidelmobs.commands.StreakCommand;
 import fr.fidelmobs.data.PlayerDataManager;
-import fr.fidelmobs.database.ArmySyncTask;
 import fr.fidelmobs.database.DatabaseManager;
 import fr.fidelmobs.database.TicketSyncTask;
 import fr.fidelmobs.listeners.AllyListener;
 import fr.fidelmobs.listeners.ArenaProtectionListener;
-import fr.fidelmobs.listeners.ArmySyncListener;
 import fr.fidelmobs.listeners.LoginListener;
 import fr.fidelmobs.managers.ArenaScoreboardManager;
 import fr.fidelmobs.managers.ArrowManager;
@@ -50,7 +47,6 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
     private PowerSelectorManager powerSelectorManager;
     private PowerUseManager powerUseManager;
     private DatabaseManager databaseManager;
-    private ArmySyncTask armySyncTask;
 
     @Override
     public void onEnable() {
@@ -96,39 +92,21 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
         getCommand("bloc").setExecutor(blocCommand);
         getCommand("bloc").setTabCompleter(blocCommand);
 
-        getCommand("lier").setExecutor(new LierCommand(this));
-
-        // La base MySQL partagée est utilisée par DEUX fonctionnalités optionnelles
-        // indépendantes : la boutique de tickets et l'arène de stratégie web. On se connecte
-        // dès que l'une des deux est activée ; le reste du plugin fonctionne sans MySQL.
-        boolean boutiqueActive = getConfig().getBoolean("boutique.enabled", false);
-        boolean strategieWebActive = getConfig().getBoolean("strategie-web.enabled", false);
-
-        if (boutiqueActive || strategieWebActive) {
+        // Boutique en argent réel (achat de tickets sur le site web) : entièrement optionnelle,
+        // le reste du plugin fonctionne sans MySQL. Ne s'active que si explicitement demandé.
+        if (getConfig().getBoolean("boutique.enabled", false)) {
             this.databaseManager = new DatabaseManager(this);
             try {
                 databaseManager.connect();
-                getLogger().info("Connexion MySQL partagée établie.");
+                long intervalle = Math.max(5, getConfig().getInt("boutique.sync-interval-seconds", 15)) * 20L;
+                getServer().getScheduler().runTaskTimerAsynchronously(this,
+                        new TicketSyncTask(this, databaseManager), intervalle, intervalle);
+                getLogger().info("Boutique de tickets (MySQL) activée.");
             } catch (Exception e) {
-                getLogger().severe("Échec de connexion MySQL : " + e.getMessage()
-                        + " — boutique et arène de stratégie web désactivées pour cette session.");
+                getLogger().severe("Échec de connexion MySQL pour la boutique : " + e.getMessage()
+                        + " — la boutique en argent réel est désactivée pour cette session.");
                 databaseManager = null;
             }
-        }
-
-        if (databaseManager != null && boutiqueActive) {
-            long intervalle = Math.max(5, getConfig().getInt("boutique.sync-interval-seconds", 15)) * 20L;
-            getServer().getScheduler().runTaskTimerAsynchronously(this,
-                    new TicketSyncTask(this, databaseManager), intervalle, intervalle);
-            getLogger().info("Boutique de tickets (MySQL) activée.");
-        }
-
-        if (databaseManager != null && strategieWebActive) {
-            this.armySyncTask = new ArmySyncTask(this, databaseManager);
-            long intervalle = Math.max(5, getConfig().getInt("strategie-web.sync-interval-seconds", 20)) * 20L;
-            getServer().getScheduler().runTaskTimerAsynchronously(this, armySyncTask, intervalle, intervalle);
-            getServer().getPluginManager().registerEvents(new ArmySyncListener(this), this);
-            getLogger().info("Arène de stratégie web (MySQL) activée.");
         }
 
         getLogger().info("LoyaltyMobs activé.");
@@ -205,14 +183,5 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
 
     public PowerUseManager getPowerUseManager() {
         return powerUseManager;
-    }
-
-    public DatabaseManager getDatabaseManager() {
-        return databaseManager;
-    }
-
-    /** Peut être {@code null} si {@code strategie-web.enabled} est désactivé dans config.yml. */
-    public ArmySyncTask getArmySyncTask() {
-        return armySyncTask;
     }
 }

@@ -20,7 +20,9 @@ import org.bukkit.inventory.ItemStack;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class RoueCommand implements CommandExecutor {
 
@@ -39,10 +41,15 @@ public class RoueCommand implements CommandExecutor {
     }
 
     /**
-     * Une étape de révélation animée : catégorie + nom coloré déjà formatés, et rareté
-     * (utilisée pour choisir le son joué et l'intensité du titre).
+     * Une étape de révélation animée : catégorie + nom coloré déjà formatés, un détail
+     * optionnel (enchantements pour l'équipement, effet pour les flèches) affiché en plus
+     * dans le titre de récompense, et rareté (son + intensité du titre).
      */
-    private record Etape(String categorie, String nomAffiche, MobRarity rarete) {
+    private record Etape(String categorie, String nomAffiche, String detail, MobRarity rarete) {
+    }
+
+    /** Résultat d'une catégorie de récompense : nom affiché + détail optionnel pour le titre. */
+    private record Resultat(String nom, String detail) {
     }
 
     @Override
@@ -61,16 +68,27 @@ public class RoueCommand implements CommandExecutor {
         }
 
         // ---- Phase 1 : tirage pur (sans effet de bord) de chaque catégorie ----
+        // Équipement/flèches : on exclut ce que le joueur possède déjà pour ne jamais lui
+        // donner deux fois exactement la même arme/armure ou la même flèche à effet.
+        Set<Material> materiauxPossedes = data.getEquipements(uuid).stream()
+                .map(ItemStack::getType).collect(Collectors.toSet());
+        Set<Integer> tiersFlecheDejaPossedes = data.getFleches(uuid).stream()
+                .map(ArrowRegistry::getRarete).collect(Collectors.toSet());
+
         EntityType mob = MobRegistry.tirerMobAleatoire();
         Material bloc = BlockRegistry.tirerBlocAleatoire(data.getBlocsDebloques(uuid));
-        ItemStack equip = GearRegistry.genererObjetAleatoire();
-        ItemStack fleche = ArrowRegistry.genererFlecheAleatoire();
+        // equip/fleche peuvent être null : ça signifie que la collection est déjà complète
+        // (5 flèches, 25 combinaisons d'équipement possibles) à ce palier minimum. Dans ce
+        // cas on ne retombe JAMAIS sur un doublon réel : la rareté "nominale" sert juste à
+        // dimensionner le bonus de compensation (voir appliquerEquipement/appliquerFleche).
+        ItemStack equip = tirerEquipementSansDoublon(0, materiauxPossedes);
+        ItemStack fleche = tirerFlecheSansDoublon(0, tiersFlecheDejaPossedes);
         PowerRegistry.PowerDefinition pouvoir = PowerRegistry.tirerPouvoirAleatoire();
 
         MobRarity rMob = MobRegistry.getRarete(mob);
         MobRarity rBloc = BlockRegistry.getRarete(bloc);
-        MobRarity rEquip = MobRarity.values()[GearRegistry.getRarete(equip)];
-        MobRarity rFleche = MobRarity.values()[ArrowRegistry.getRarete(fleche)];
+        MobRarity rEquip = equip != null ? MobRarity.values()[GearRegistry.getRarete(equip)] : GearRegistry.tirerRareteSeule(0);
+        MobRarity rFleche = fleche != null ? MobRarity.values()[ArrowRegistry.getRarete(fleche)] : ArrowRegistry.tirerRareteSeule(0);
         MobRarity rPouvoir = pouvoir.rarete();
 
         // ---- Garantie : au moins une récompense RARE ou mieux parmi les 5 catégories ----
@@ -87,12 +105,14 @@ public class RoueCommand implements CommandExecutor {
                     rBloc = BlockRegistry.getRarete(bloc);
                 }
                 case 2 -> {
-                    equip = GearRegistry.genererObjetAleatoire(MobRarity.RARE.ordinal());
-                    rEquip = MobRarity.values()[GearRegistry.getRarete(equip)];
+                    equip = tirerEquipementSansDoublon(MobRarity.RARE.ordinal(), materiauxPossedes);
+                    rEquip = equip != null ? MobRarity.values()[GearRegistry.getRarete(equip)]
+                            : GearRegistry.tirerRareteSeule(MobRarity.RARE.ordinal());
                 }
                 case 3 -> {
-                    fleche = ArrowRegistry.genererFlecheAleatoire(MobRarity.RARE.ordinal());
-                    rFleche = MobRarity.values()[ArrowRegistry.getRarete(fleche)];
+                    fleche = tirerFlecheSansDoublon(MobRarity.RARE.ordinal(), tiersFlecheDejaPossedes);
+                    rFleche = fleche != null ? MobRarity.values()[ArrowRegistry.getRarete(fleche)]
+                            : ArrowRegistry.tirerRareteSeule(MobRarity.RARE.ordinal());
                 }
                 default -> {
                     pouvoir = PowerRegistry.tirerPouvoirAleatoire(MobRarity.RARE.ordinal());
@@ -109,12 +129,18 @@ public class RoueCommand implements CommandExecutor {
         player.sendMessage(" ");
 
         // ---- Phase 2 : application (mutation des données + messages de chat détaillés) ----
+        Resultat rMobRes = appliquerMob(player, data, uuid, mob, rMob);
+        Resultat rBlocRes = appliquerBloc(player, data, uuid, bloc, rBloc);
+        Resultat rEquipRes = appliquerEquipement(player, data, uuid, equip, rEquip);
+        Resultat rFlecheRes = appliquerFleche(player, data, uuid, fleche, rFleche);
+        Resultat rPouvoirRes = appliquerPouvoir(player, data, uuid, pouvoir, rPouvoir);
+
         List<Etape> etapes = new ArrayList<>();
-        etapes.add(new Etape("☠ Allié", appliquerMob(player, data, uuid, mob, rMob), rMob));
-        etapes.add(new Etape("▣ Bloc", appliquerBloc(player, data, uuid, bloc, rBloc), rBloc));
-        etapes.add(new Etape("⚔ Équip", appliquerEquipement(player, data, uuid, equip, rEquip), rEquip));
-        etapes.add(new Etape("➶ Flèche", appliquerFleche(player, data, uuid, fleche, rFleche), rFleche));
-        etapes.add(new Etape("✪ Pouvoir", appliquerPouvoir(player, data, uuid, pouvoir, rPouvoir), rPouvoir));
+        etapes.add(new Etape("☠ Allié", rMobRes.nom(), rMobRes.detail(), rMob));
+        etapes.add(new Etape("▣ Bloc", rBlocRes.nom(), rBlocRes.detail(), rBloc));
+        etapes.add(new Etape("⚔ Équip", rEquipRes.nom(), rEquipRes.detail(), rEquip));
+        etapes.add(new Etape("➶ Flèche", rFlecheRes.nom(), rFlecheRes.detail(), rFleche));
+        etapes.add(new Etape("✪ Pouvoir", rPouvoirRes.nom(), rPouvoirRes.detail(), rPouvoir));
 
         player.sendMessage(" ");
         player.sendMessage(SEPARATEUR);
@@ -139,15 +165,15 @@ public class RoueCommand implements CommandExecutor {
         return true;
     }
 
-    private String appliquerMob(Player player, PlayerDataManager data, UUID uuid, EntityType mob, MobRarity rarete) {
+    private Resultat appliquerMob(Player player, PlayerDataManager data, UUID uuid, EntityType mob, MobRarity rarete) {
         data.ajouterMob(uuid, mob);
         String nom = nomLisible(mob.name());
         afficherLigne(player, "☠ Allié", rarete.getCouleur() + "§l" + nom, rarete);
         player.sendMessage("  §7Utilise §f/armee §7pour voir toute ta collection.");
-        return nom;
+        return new Resultat(nom, null);
     }
 
-    private String appliquerBloc(Player player, PlayerDataManager data, UUID uuid, Material bloc, MobRarity rarete) {
+    private Resultat appliquerBloc(Player player, PlayerDataManager data, UUID uuid, Material bloc, MobRarity rarete) {
         boolean nouveau = !data.getBlocsDebloques(uuid).contains(bloc);
         data.debloquerBloc(uuid, bloc);
         String nom = nomLisible(bloc.name());
@@ -157,16 +183,24 @@ public class RoueCommand implements CommandExecutor {
         } else {
             player.sendMessage("  §7Tu possédais déjà ce bloc.");
         }
-        return nom;
+        return new Resultat(nom, null);
     }
 
-    private String appliquerEquipement(Player player, PlayerDataManager data, UUID uuid, ItemStack item, MobRarity rarete) {
+    private Resultat appliquerEquipement(Player player, PlayerDataManager data, UUID uuid, ItemStack item, MobRarity rarete) {
+        if (item == null) {
+            return appliquerBonusCollectionComplete(player, data, uuid, "⚔ Équip", rarete);
+        }
+
         GearRegistry.TypeEquipement type = GearRegistry.getType(item);
         int rareteIndex = rarete.ordinal();
         int index = data.ajouterEquipement(uuid, item);
 
         String nom = item.getItemMeta().hasDisplayName() ? item.getItemMeta().getDisplayName() : item.getType().name();
         afficherLigne(player, "⚔ Équip", "§l" + nom, rarete);
+        String enchantements = GearRegistry.formatEnchantements(item);
+        if (enchantements != null) {
+            player.sendMessage("  §8✦ Enchantements : §f" + enchantements);
+        }
 
         if (type != null) {
             int indexActuel = data.getIndexEquipe(uuid, type.slot);
@@ -180,10 +214,14 @@ public class RoueCommand implements CommandExecutor {
                 player.sendMessage("  §7Utilise le menu d'équipement (arène) §7ou §f/equipement equiper §7pour le porter à la place.");
             }
         }
-        return nom;
+        return new Resultat(nom, enchantements);
     }
 
-    private String appliquerFleche(Player player, PlayerDataManager data, UUID uuid, ItemStack item, MobRarity rarete) {
+    private Resultat appliquerFleche(Player player, PlayerDataManager data, UUID uuid, ItemStack item, MobRarity rarete) {
+        if (item == null) {
+            return appliquerBonusCollectionComplete(player, data, uuid, "➶ Flèche", rarete);
+        }
+
         int rareteIndex = rarete.ordinal();
         int index = data.ajouterFleche(uuid, item);
 
@@ -204,11 +242,28 @@ public class RoueCommand implements CommandExecutor {
         } else {
             player.sendMessage("  §7Utilise le menu d'équipement (arène) §7pour la porter à la place.");
         }
-        return nom;
+        return new Resultat(nom, effet);
     }
 
-    private String appliquerPouvoir(Player player, PlayerDataManager data, UUID uuid,
-                                     PowerRegistry.PowerDefinition pouvoir, MobRarity rarete) {
+    /**
+     * Utilisé quand la collection (équipement ou flèches) est déjà complète à ce palier
+     * minimum : plutôt que de rendre un doublon réel (une arme/armure/flèche que le joueur
+     * possède déjà), on convertit la récompense en points de fidélité, à la hauteur de la
+     * rareté qui aurait dû être tirée. Le joueur ne reçoit ainsi jamais deux fois exactement
+     * le même objet.
+     */
+    private Resultat appliquerBonusCollectionComplete(Player player, PlayerDataManager data, UUID uuid,
+                                                        String categorie, MobRarity rarete) {
+        int points = 20 * (rarete.ordinal() + 1);
+        data.ajouterPoints(uuid, points);
+
+        afficherLigne(player, categorie, rarete.getCouleur() + "§l" + points + " points", rarete);
+        player.sendMessage("  §7Collection déjà complète dans cette catégorie ! §a+" + points + " points de fidélité §7à la place.");
+        return new Resultat(points + " points", "collection complète");
+    }
+
+    private Resultat appliquerPouvoir(Player player, PlayerDataManager data, UUID uuid,
+                                       PowerRegistry.PowerDefinition pouvoir, MobRarity rarete) {
         data.ajouterPouvoir(uuid, pouvoir.id());
 
         afficherLigne(player, "✪ Pouvoir", rarete.getCouleur() + "§l" + pouvoir.nom(), rarete);
@@ -229,7 +284,26 @@ public class RoueCommand implements CommandExecutor {
         } else {
             player.sendMessage("  §7Utilise le sélecteur de pouvoirs (arène, 6e slot) §7pour l'équiper à la place.");
         }
-        return pouvoir.nom();
+        return new Resultat(pouvoir.nom(), null);
+    }
+
+    /**
+     * Tire une pièce d'équipement/arme que le joueur ne possède pas encore (même matériau).
+     * Renvoie {@code null} si toutes les combinaisons possibles à ce tier minimum sont déjà
+     * possédées (collection complète) : dans ce cas on ne rend JAMAIS un doublon (voir
+     * {@link #appliquerBonusCollectionComplete}).
+     */
+    private ItemStack tirerEquipementSansDoublon(int minTierOrdinal, Set<Material> materiauxDejaPossedes) {
+        return GearRegistry.genererObjetAleatoire(minTierOrdinal, materiauxDejaPossedes);
+    }
+
+    /**
+     * Tire une flèche à effet que le joueur ne possède pas encore (même palier de rareté).
+     * Renvoie {@code null} si tous les paliers possibles sont déjà possédés (collection
+     * complète), sans jamais retomber sur un doublon.
+     */
+    private ItemStack tirerFlecheSansDoublon(int minTierOrdinal, Set<Integer> tiersDejaPossedes) {
+        return ArrowRegistry.genererFlecheAleatoire(minTierOrdinal, tiersDejaPossedes);
     }
 
     /**
@@ -259,7 +333,11 @@ public class RoueCommand implements CommandExecutor {
         for (Etape etape : etapes) {
             plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
                 if (!player.isOnline()) return;
-                String sousTitre = etape.nomAffiche() + " §8« " + etape.rarete().getCouleur() + etape.rarete().getLabel() + "§8 »";
+                String base = etape.nomAffiche() + " §8« " + etape.rarete().getCouleur() + etape.rarete().getLabel() + "§8 »";
+                // Détail (enchantements pour l'équipement, effet pour les flèches) ajouté à
+                // la suite du sous-titre quand il y en a un, pour ne rien avoir à chercher
+                // dans le chat pendant l'animation.
+                String sousTitre = etape.detail() != null ? base + " §7— §f" + etape.detail() : base;
                 // fadeIn 5, stay 45 (2,25s), fadeOut 10 : bien plus lisible que l'ancien
                 // enchaînement rapide, surtout pour les noms de récompense les plus longs.
                 player.sendTitle(etape.rarete().getCouleur() + "§l" + etape.categorie(), sousTitre, 5, 45, 10);

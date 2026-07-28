@@ -11,8 +11,10 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 /**
  * Flèches à effet obtenues à la roue : classées par rareté comme le reste du plugin,
@@ -83,9 +85,46 @@ public final class ArrowRegistry {
         return genererFlecheAleatoire(0);
     }
 
+    /**
+     * Tire uniquement une rareté (sans construire de flèche), utilisé quand la collection
+     * de flèches est déjà complète à ce tier minimum : sert à dimensionner le bonus de
+     * compensation dans la roue, sans jamais pouvoir donner un doublon réel.
+     */
+    public static MobRarity tirerRareteSeule(int minTierOrdinal) {
+        int tier = tirerTier(minTierOrdinal);
+        return MobRarity.values()[tier];
+    }
+
     public static ItemStack genererFlecheAleatoire(int minTierOrdinal) {
         int tier = tirerTier(minTierOrdinal);
         return construire(tier);
+    }
+
+    /**
+     * Variante anti-doublons : ne tire jamais un palier de flèche déjà présent dans
+     * {@code tiersExclus} (la collection déjà possédée par le joueur). Chaque palier de
+     * rareté correspond à un modèle de flèche unique et fixe, donc "même tier" = "même
+     * flèche". Retourne {@code null} si TOUS les paliers possibles (au minimum demandé)
+     * sont déjà possédés (collection de flèches complète).
+     */
+    public static ItemStack genererFlecheAleatoire(int minTierOrdinal, Set<Integer> tiersExclus) {
+        int min = Math.max(0, minTierOrdinal);
+        List<Integer> disponibles = new ArrayList<>();
+        for (int t = min; t < MODELES.length; t++) {
+            if (!tiersExclus.contains(t)) disponibles.add(t);
+        }
+        if (disponibles.isEmpty()) return null; // toutes les flèches (à ce palier minimum) déjà possédées
+
+        MobRarity[] valeurs = MobRarity.values();
+        int poidsTotal = 0;
+        for (int t : disponibles) poidsTotal += valeurs[t].getPoids();
+        int tirage = RANDOM.nextInt(poidsTotal);
+        int cumul = 0;
+        for (int t : disponibles) {
+            cumul += valeurs[t].getPoids();
+            if (tirage < cumul) return construire(t);
+        }
+        return construire(disponibles.get(disponibles.size() - 1));
     }
 
     private static ItemStack construire(int tier) {
@@ -96,7 +135,7 @@ public final class ArrowRegistry {
         ItemStack item = new ItemStack(effet ? Material.TIPPED_ARROW : Material.ARROW);
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(rarete.getCouleur() + modele.nom());
-        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+        meta.addItemFlags(ItemFlag.HIDE_POTION_EFFECTS, ItemFlag.HIDE_ATTRIBUTES);
         meta.getPersistentDataContainer().set(Cles.FLECHE_RARETE, PersistentDataType.INTEGER, tier);
         meta.getPersistentDataContainer().set(Cles.FLECHE_MARQUEUR, PersistentDataType.BYTE, (byte) 1);
 

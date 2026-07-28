@@ -9,8 +9,11 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 /**
  * Génère des pièces d'armure et des épées aléatoires pour la roue, classées par rareté
@@ -104,10 +107,73 @@ public final class GearRegistry {
         return genererObjetAleatoire(0);
     }
 
+    /**
+     * Tire uniquement une rareté (sans construire d'objet), utilisé quand la collection
+     * d'équipement est déjà complète à ce tier minimum : sert à dimensionner le bonus de
+     * compensation dans la roue, sans jamais pouvoir donner un doublon réel.
+     */
+    public static MobRarity tirerRareteSeule(int minTierOrdinal) {
+        int tier = minTierOrdinal > 0 ? tirerTier(minTierOrdinal) : tirerTier();
+        return MobRarity.values()[tier];
+    }
+
     public static ItemStack genererObjetAleatoire(int minTierOrdinal) {
         TypeEquipement[] types = TypeEquipement.values();
         TypeEquipement type = types[RANDOM.nextInt(types.length)];
         int tier = minTierOrdinal > 0 ? tirerTier(minTierOrdinal) : tirerTier();
+        return construireItem(type, tier);
+    }
+
+    /**
+     * Variante anti-doublons : ne tire jamais un type+tier de matériau déjà présent dans
+     * {@code materiauxExclus} (la collection déjà possédée par le joueur). Essaie toutes les
+     * combinaisons type+tier disponibles avant d'abandonner ; retourne {@code null} si TOUTES
+     * les pièces possibles (au tier minimum demandé) sont déjà possédées (collection complète).
+     */
+    public static ItemStack genererObjetAleatoire(int minTierOrdinal, Set<Material> materiauxExclus) {
+        List<TypeEquipement> typesMelanges = new ArrayList<>(List.of(TypeEquipement.values()));
+        Collections.shuffle(typesMelanges, RANDOM);
+        int min = Math.max(0, minTierOrdinal);
+        MobRarity[] valeurs = MobRarity.values();
+
+        for (TypeEquipement type : typesMelanges) {
+            List<Integer> tiersDisponibles = new ArrayList<>();
+            for (int t = min; t < valeurs.length; t++) {
+                if (!materiauxExclus.contains(materialPour(type, t))) {
+                    tiersDisponibles.add(t);
+                }
+            }
+            if (tiersDisponibles.isEmpty()) continue; // ce type n'a plus rien de nouveau à offrir
+
+            int poidsTotal = 0;
+            for (int t : tiersDisponibles) poidsTotal += valeurs[t].getPoids();
+            int tirage = RANDOM.nextInt(poidsTotal);
+            int cumul = 0;
+            int tierChoisi = tiersDisponibles.get(tiersDisponibles.size() - 1);
+            for (int t : tiersDisponibles) {
+                cumul += valeurs[t].getPoids();
+                if (tirage < cumul) {
+                    tierChoisi = t;
+                    break;
+                }
+            }
+            return construireItem(type, tierChoisi);
+        }
+
+        return null; // toutes les combinaisons possibles (à ce tier minimum) sont déjà possédées
+    }
+
+    private static Material materialPour(TypeEquipement type, int tier) {
+        return switch (type) {
+            case CASQUE -> CASQUES[tier];
+            case PLASTRON -> PLASTRONS[tier];
+            case JAMBIERES -> JAMBIERES[tier];
+            case BOTTES -> BOTTES[tier];
+            case ARME -> EPEES[tier];
+        };
+    }
+
+    private static ItemStack construireItem(TypeEquipement type, int tier) {
         boolean enchante = RANDOM.nextDouble() < CHANCE_ENCHANTE;
 
         // Le stuff de base (cuir/bois, tier COMMUN) ne doit jamais s'obtenir "tel quel" à la
@@ -116,13 +182,7 @@ public final class GearRegistry {
             enchante = true;
         }
 
-        Material material = switch (type) {
-            case CASQUE -> CASQUES[tier];
-            case PLASTRON -> PLASTRONS[tier];
-            case JAMBIERES -> JAMBIERES[tier];
-            case BOTTES -> BOTTES[tier];
-            case ARME -> EPEES[tier];
-        };
+        Material material = materialPour(type, tier);
 
         // Si enchanté, on monte d'un cran de rareté affichée (plafonné à LEGENDAIRE)
         int tierAffiche = enchante ? Math.min(tier + 1, MobRarity.values().length - 1) : tier;
@@ -139,18 +199,28 @@ public final class GearRegistry {
 
         meta.getPersistentDataContainer().set(Cles.RARETE, PersistentDataType.INTEGER, tierAffiche);
         meta.getPersistentDataContainer().set(Cles.ENCHANTE, PersistentDataType.INTEGER, enchante ? 1 : 0);
-        item.setItemMeta(meta);
 
+        // Les enchantements sont ajoutés directement sur CE MÊME objet meta, avant l'unique
+        // appel à item.setItemMeta() ci-dessous. On évite ainsi de repasser par
+        // item.addUnsafeEnchantment(...) après coup, qui refait un aller-retour meta
+        // (getItemMeta -> ... -> setItemMeta) redondant et a pu, selon la version de
+        // Paper/du serveur, ne pas se répercuter de façon fiable sur l'objet renvoyé.
         if (enchante) {
             List<Enchantment> pool = (type == TypeEquipement.ARME) ? ENCHANTS_ARME : ENCHANTS_ARMURE;
-            int nbEnchants = 1 + RANDOM.nextInt(2); // 1 ou 2
-            for (int i = 0; i < nbEnchants; i++) {
-                Enchantment ench = pool.get(RANDOM.nextInt(pool.size()));
+            List<Enchantment> dejaAppliques = new ArrayList<>();
+            int nbEnchants = 1 + RANDOM.nextInt(2); // 1 ou 2, sans doublon d'enchantement
+            for (int i = 0; i < nbEnchants && dejaAppliques.size() < pool.size(); i++) {
+                Enchantment ench;
+                do {
+                    ench = pool.get(RANDOM.nextInt(pool.size()));
+                } while (dejaAppliques.contains(ench));
+                dejaAppliques.add(ench);
                 int niveau = 1 + RANDOM.nextInt(ench.getMaxLevel());
-                item.addUnsafeEnchantment(ench, niveau);
+                meta.addEnchant(ench, niveau, true);
             }
         }
 
+        item.setItemMeta(meta);
         return item;
     }
 

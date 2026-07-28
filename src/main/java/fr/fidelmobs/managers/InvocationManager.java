@@ -131,6 +131,10 @@ public class InvocationManager {
         entite.setCustomNameVisible(true);
 
         if (entite instanceof Mob mob) {
+            // Un allié invoqué ne doit jamais disparaître tout seul par éloignement (bug
+            // particulièrement visible sur l'Ender Dragon, dont le contrôleur vanilla hors
+            // de The End peut sinon le faire disparaître quasi aussitôt).
+            mob.setRemoveWhenFarAway(false);
             plugin.getAllyListener().enregistrerAllie(mob, player);
         }
 
