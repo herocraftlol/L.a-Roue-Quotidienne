@@ -93,7 +93,7 @@ public class GearSelectorManager {
         }
         Map<Integer, List<Integer>> groupesFleches = new LinkedHashMap<>();
         for (int i = 0; i < fleches.size(); i++) {
-            groupesFleches.computeIfAbsent(ArrowRegistry.getRarete(fleches.get(i)), k -> new ArrayList<>()).add(i);
+            groupesFleches.computeIfAbsent(ArrowRegistry.getModeleId(fleches.get(i)), k -> new ArrayList<>()).add(i);
         }
 
         int nbIcones = groupesGear.size() + groupesFleches.size();

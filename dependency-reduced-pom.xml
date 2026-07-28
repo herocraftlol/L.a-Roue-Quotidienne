@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>fr.fidelmobs</groupId>
   <artifactId>LoyaltyMobs</artifactId>
-  <version>1.0.29</version>
+  <version>1.0.30</version>
   <build>
     <finalName>${project.artifactId}</finalName>
     <plugins>

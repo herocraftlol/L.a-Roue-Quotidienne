@@ -72,8 +72,8 @@ public class RoueCommand implements CommandExecutor {
         // donner deux fois exactement la même arme/armure ou la même flèche à effet.
         Set<Material> materiauxPossedes = data.getEquipements(uuid).stream()
                 .map(ItemStack::getType).collect(Collectors.toSet());
-        Set<Integer> tiersFlecheDejaPossedes = data.getFleches(uuid).stream()
-                .map(ArrowRegistry::getRarete).collect(Collectors.toSet());
+        Set<Integer> flechesDejaPossedees = data.getFleches(uuid).stream()
+                .map(ArrowRegistry::getModeleId).collect(Collectors.toSet());
 
         EntityType mob = MobRegistry.tirerMobAleatoire();
         Material bloc = BlockRegistry.tirerBlocAleatoire(data.getBlocsDebloques(uuid));
@@ -82,7 +82,7 @@ public class RoueCommand implements CommandExecutor {
         // cas on ne retombe JAMAIS sur un doublon réel : la rareté "nominale" sert juste à
         // dimensionner le bonus de compensation (voir appliquerEquipement/appliquerFleche).
         ItemStack equip = tirerEquipementSansDoublon(0, materiauxPossedes);
-        ItemStack fleche = tirerFlecheSansDoublon(0, tiersFlecheDejaPossedes);
+        ItemStack fleche = tirerFlecheSansDoublon(0, flechesDejaPossedees);
         PowerRegistry.PowerDefinition pouvoir = PowerRegistry.tirerPouvoirAleatoire();
 
         MobRarity rMob = MobRegistry.getRarete(mob);
@@ -110,7 +110,7 @@ public class RoueCommand implements CommandExecutor {
                             : GearRegistry.tirerRareteSeule(MobRarity.RARE.ordinal());
                 }
                 case 3 -> {
-                    fleche = tirerFlecheSansDoublon(MobRarity.RARE.ordinal(), tiersFlecheDejaPossedes);
+                    fleche = tirerFlecheSansDoublon(MobRarity.RARE.ordinal(), flechesDejaPossedees);
                     rFleche = fleche != null ? MobRarity.values()[ArrowRegistry.getRarete(fleche)]
                             : ArrowRegistry.tirerRareteSeule(MobRarity.RARE.ordinal());
                 }
