@@ -135,7 +135,7 @@ public final class ArrowRegistry {
         ItemStack item = new ItemStack(effet ? Material.TIPPED_ARROW : Material.ARROW);
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(rarete.getCouleur() + modele.nom());
-        meta.addItemFlags(ItemFlag.HIDE_POTION_EFFECTS, ItemFlag.HIDE_ATTRIBUTES);
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         meta.getPersistentDataContainer().set(Cles.FLECHE_RARETE, PersistentDataType.INTEGER, tier);
         meta.getPersistentDataContainer().set(Cles.FLECHE_MARQUEUR, PersistentDataType.BYTE, (byte) 1);
 

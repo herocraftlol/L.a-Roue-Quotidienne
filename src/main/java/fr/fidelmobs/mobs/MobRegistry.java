@@ -80,9 +80,10 @@ public final class MobRegistry {
                 break;
             }
         }
+        final MobRarity rareteFinale = rareteTiree;
 
         List<EntityType> candidats = RARETE_PAR_MOB.entrySet().stream()
-                .filter(e -> e.getValue() == rareteTiree)
+                .filter(e -> e.getValue() == rareteFinale)
                 .map(Map.Entry::getKey)
                 .toList();
 
