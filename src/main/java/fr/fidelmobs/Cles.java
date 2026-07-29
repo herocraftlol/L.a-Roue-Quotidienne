@@ -37,4 +37,8 @@ public final class Cles {
     // Item actif représentant le pouvoir actuellement équipé (5e slot de la hotbar)
     public static final NamespacedKey POUVOIR_ACTIF = new NamespacedKey("fidelmobs", "pouvoir_actif");
     public static final NamespacedKey POUVOIR_ID = new NamespacedKey("fidelmobs", "pouvoir_id");
+
+    // Menu /defi : identifie le défi représenté par une icône, pour la récupération manuelle
+    public static final NamespacedKey DEFI_ID = new NamespacedKey("fidelmobs", "defi_id");
+    public static final NamespacedKey DEFI_QUOTIDIEN = new NamespacedKey("fidelmobs", "defi_quotidien");
 }

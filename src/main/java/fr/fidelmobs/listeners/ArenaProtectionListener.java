@@ -397,7 +397,7 @@ public class ArenaProtectionListener implements Listener {
         event.setCancelled(true);
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
-        plugin.getDefiManager().gererClicNavigation(player, holder, event.getRawSlot());
+        plugin.getDefiManager().gererClic(player, holder, event.getRawSlot(), event.getCurrentItem());
     }
 
     @EventHandler
