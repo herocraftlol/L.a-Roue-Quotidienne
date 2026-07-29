@@ -71,12 +71,29 @@ public class AllyListener implements Listener {
     // figé ou part en phase de "fuite" vers un portail inexistant et finit par disparaître
     // quasi aussitôt. On le maintient donc en phase HOVER (neutre, ne dépend pas du combat
     // d'End) et on pilote nous-mêmes sa position et ses attaques à chaque rafraîchissement.
-    private static final double PORTEE_ATTAQUE_DRAGON = 6.0;
-    private static final double VITESSE_DEPLACEMENT_DRAGON = 1.6; // blocs parcourus par rafraîchissement
-    private static final long INTERVALLE_PILOTAGE_DRAGON_TICKS = 4L; // 0.2s : fluide sans spammer les téléportations
-    private static final long COOLDOWN_ATTAQUE_DRAGON_MS = 1500L;
+    //
+    // Contre un adversaire, le dragon orbite autour de sa cible puis PIQUE dessus par
+    // intervalles (rayon qui se resserre, morsure au plus près, puis remontée) plutôt que
+    // de simplement s'arrêter à distance de morsure : l'ancienne version se contentait de
+    // stopper tout mouvement une fois à portée sans jamais réorienter sa tête vers la
+    // cible, ce qui donnait l'impression qu'il "attaquait en reculant". Ici, la tête reste
+    // en permanence tournée vers la cible, et le rapprochement/éloignement fait partie
+    // intentionnelle du mouvement de piqué, pas un artefact.
+    private static final double RAYON_ORBITE_DRAGON = 11.0;
+    private static final double RAYON_CHARGE_DRAGON = 3.0;
+    private static final double HAUTEUR_ORBITE_DRAGON = 6.0;
+    private static final double HAUTEUR_CHARGE_DRAGON = 1.5;
+    private static final double VITESSE_ANGULAIRE_DRAGON = 0.05; // radians par rafraîchissement
+    private static final long DUREE_APPROCHE_CHARGE_MS = 1400L;
+    private static final long DUREE_RETRAIT_CHARGE_MS = 1200L;
+    private static final long COOLDOWN_ENTRE_CHARGES_MS = 3500L;
     private static final double DEGATS_MORSURE_DRAGON = 12.0;
-    private final Map<UUID, Long> derniereAttaqueDragon = new HashMap<>();
+    private static final long INTERVALLE_PILOTAGE_DRAGON_TICKS = 4L; // 0.2s : fluide sans spammer les téléportations
+
+    private final Map<UUID, Double> angleOrbiteDragon = new HashMap<>();
+    private final Map<UUID, Long> dragonDebutCharge = new HashMap<>(); // 0 = pas en train de piquer
+    private final Map<UUID, Long> dragonProchaineCharge = new HashMap<>();
+    private final Map<UUID, Boolean> dragonMorsureAppliquee = new HashMap<>();
 
     private final LoyaltyMobsPlugin plugin;
     // propriétaire -> entités alliées actuellement en vie
@@ -236,49 +253,98 @@ public class AllyListener implements Listener {
             dragon.setPhase(EnderDragon.Phase.HOVER);
         }
 
+        UUID dragonId = dragon.getUniqueId();
         LivingEntity cible = trouverCibleEnnemieLaPlusProche(proprietaireId, dragon);
         Location origine = dragon.getLocation();
-        Location destination;
 
-        if (cible != null) {
-            destination = cible.getLocation().clone().add(0, 2.0, 0);
-        } else if (proprietaire != null && proprietaire.isOnline()
-                && proprietaire.getWorld().equals(dragon.getWorld())) {
-            // Pas d'adversaire en vue : patrouille en cercle au-dessus de son invocateur
-            // plutôt que de rester planté sur place.
-            double angle = (System.currentTimeMillis() / 1000.0) % (2 * Math.PI);
+        if (cible == null) {
+            // Pas d'adversaire en vue : on nettoie l'état de combat et on patrouille en
+            // cercle au-dessus de son invocateur plutôt que de rester planté sur place.
+            angleOrbiteDragon.remove(dragonId);
+            dragonDebutCharge.remove(dragonId);
+            dragonProchaineCharge.remove(dragonId);
+            dragonMorsureAppliquee.remove(dragonId);
+
+            if (proprietaire == null || !proprietaire.isOnline() || !proprietaire.getWorld().equals(dragon.getWorld())) {
+                return;
+            }
+            double angleIdle = (System.currentTimeMillis() / 1000.0) % (2 * Math.PI);
             Location autour = proprietaire.getLocation();
-            destination = autour.clone().add(Math.cos(angle) * 8.0, 6.0, Math.sin(angle) * 8.0);
-        } else {
+            Location destination = autour.clone().add(Math.cos(angleIdle) * 8.0, 6.0, Math.sin(angleIdle) * 8.0);
+            Vector direction = destination.toVector().subtract(origine.toVector());
+            if (direction.length() > 0.3) {
+                Vector pas = direction.clone().normalize().multiply(Math.min(1.6, direction.length()));
+                Location nouvelle = origine.clone().add(pas);
+                nouvelle.setDirection(direction);
+                dragon.teleport(nouvelle);
+            }
             return;
         }
 
-        Vector direction = destination.toVector().subtract(origine.toVector());
-        double distance = direction.length();
+        long maintenant = System.currentTimeMillis();
+        double angle = angleOrbiteDragon.merge(dragonId, VITESSE_ANGULAIRE_DRAGON, Double::sum) % (2 * Math.PI);
+        long debutCharge = dragonDebutCharge.getOrDefault(dragonId, 0L);
+        long dureeTotaleCharge = DUREE_APPROCHE_CHARGE_MS + DUREE_RETRAIT_CHARGE_MS;
 
-        if (cible != null && distance <= PORTEE_ATTAQUE_DRAGON) {
-            long maintenant = System.currentTimeMillis();
-            long derniere = derniereAttaqueDragon.getOrDefault(dragon.getUniqueId(), 0L);
-            if (maintenant - derniere >= COOLDOWN_ATTAQUE_DRAGON_MS) {
-                derniereAttaqueDragon.put(dragon.getUniqueId(), maintenant);
-                cible.damage(DEGATS_MORSURE_DRAGON, dragon);
-                Vector recul = cible.getLocation().toVector().subtract(origine.toVector());
-                if (recul.lengthSquared() > 0.0001) {
-                    recul.normalize().multiply(0.8);
-                }
-                recul.setY(0.35);
-                cible.setVelocity(cible.getVelocity().add(recul));
-                dragon.getWorld().playSound(dragon.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1.5f, 1f);
+        if (debutCharge == 0L) {
+            long prochaine = dragonProchaineCharge.getOrDefault(dragonId, 0L);
+            if (maintenant >= prochaine) {
+                debutCharge = maintenant;
+                dragonDebutCharge.put(dragonId, debutCharge);
+                dragonMorsureAppliquee.put(dragonId, false);
             }
-            return; // reste à portée de sa cible sans foncer dedans
         }
 
-        if (distance > 0.3) {
-            Vector pas = direction.normalize().multiply(Math.min(VITESSE_DEPLACEMENT_DRAGON, distance));
-            Location nouvelle = origine.clone().add(pas);
-            nouvelle.setDirection(direction);
-            dragon.teleport(nouvelle);
+        double rayon;
+        double hauteur;
+        if (debutCharge != 0L) {
+            long ecoule = maintenant - debutCharge;
+            if (ecoule >= dureeTotaleCharge) {
+                // Fin du piqué : retour à l'état d'orbite normal, cooldown avant le prochain.
+                dragonDebutCharge.put(dragonId, 0L);
+                dragonProchaineCharge.put(dragonId, maintenant + COOLDOWN_ENTRE_CHARGES_MS);
+                rayon = RAYON_ORBITE_DRAGON;
+                hauteur = HAUTEUR_ORBITE_DRAGON;
+            } else if (ecoule < DUREE_APPROCHE_CHARGE_MS) {
+                // Phase d'approche : le rayon se resserre progressivement vers la cible.
+                double t = ecoule / (double) DUREE_APPROCHE_CHARGE_MS;
+                rayon = lerp(RAYON_ORBITE_DRAGON, RAYON_CHARGE_DRAGON, t);
+                hauteur = lerp(HAUTEUR_ORBITE_DRAGON, HAUTEUR_CHARGE_DRAGON, t);
+
+                if (!dragonMorsureAppliquee.getOrDefault(dragonId, false) && t >= 0.85) {
+                    // Tout près du point de rapprochement maximal : la morsure part ici,
+                    // pas au hasard pendant que le dragon tourne autour de sa proie.
+                    if (cible.getLocation().distanceSquared(origine) <= (RAYON_CHARGE_DRAGON + 2.0) * (RAYON_CHARGE_DRAGON + 2.0)) {
+                        dragonMorsureAppliquee.put(dragonId, true);
+                        cible.damage(DEGATS_MORSURE_DRAGON, dragon);
+                        Vector recul = cible.getLocation().toVector().subtract(origine.toVector());
+                        if (recul.lengthSquared() > 0.0001) recul.normalize().multiply(0.8);
+                        recul.setY(0.35);
+                        cible.setVelocity(cible.getVelocity().add(recul));
+                        dragon.getWorld().playSound(dragon.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1.5f, 1f);
+                    }
+                }
+            } else {
+                // Phase de remontée : le dragon reprend de l'altitude et de la distance.
+                double t = (ecoule - DUREE_APPROCHE_CHARGE_MS) / (double) DUREE_RETRAIT_CHARGE_MS;
+                rayon = lerp(RAYON_CHARGE_DRAGON, RAYON_ORBITE_DRAGON, t);
+                hauteur = lerp(HAUTEUR_CHARGE_DRAGON, HAUTEUR_ORBITE_DRAGON, t);
+            }
+        } else {
+            rayon = RAYON_ORBITE_DRAGON;
+            hauteur = HAUTEUR_ORBITE_DRAGON;
         }
+
+        Location centreCible = cible.getLocation();
+        Location pointOrbite = centreCible.clone().add(Math.cos(angle) * rayon, hauteur, Math.sin(angle) * rayon);
+        Vector direction = centreCible.toVector().add(new Vector(0, 1, 0)).subtract(pointOrbite.toVector());
+        pointOrbite.setDirection(direction); // la tête reste toujours tournée vers la cible, qu'il approche ou s'éloigne
+        dragon.teleport(pointOrbite);
+    }
+
+    private static double lerp(double debut, double fin, double t) {
+        double clamped = Math.max(0.0, Math.min(1.0, t));
+        return debut + (fin - debut) * clamped;
     }
 
     /**
@@ -347,6 +413,22 @@ public class AllyListener implements Listener {
         }
     }
 
+    /**
+     * Change le propriétaire d'un mob déjà invoqué : utilisé par le pouvoir "Ralliement",
+     * qui convertit un mob adverse en allié du lanceur. Retire proprement l'ancien suivi
+     * (s'il y en avait un) puis réenregistre le mob comme un allié classique du nouveau
+     * propriétaire — il en profite donc immédiatement du ciblage actif, du soutien passif
+     * et de la protection anti tir-ami comme n'importe quel autre allié invoqué.
+     */
+    public void changerProprietaire(Mob mob, Player nouveauProprietaire) {
+        UUID ancienProprietaire = getProprietaire(mob);
+        if (ancienProprietaire != null) {
+            retirerAllie(ancienProprietaire, mob.getUniqueId());
+        }
+        mob.setTarget(null);
+        enregistrerAllie(mob, nouveauProprietaire);
+    }
+
     @EventHandler
     public void onCiblage(EntityTargetLivingEntityEvent event) {
         UUID proprietaireAllie = getProprietaire(event.getEntity());
@@ -410,7 +492,11 @@ public class AllyListener implements Listener {
         if (proprietaire != null) {
             retirerAllie(proprietaire, event.getEntity().getUniqueId());
         }
-        derniereAttaqueDragon.remove(event.getEntity().getUniqueId());
+        UUID idMort = event.getEntity().getUniqueId();
+        angleOrbiteDragon.remove(idMort);
+        dragonDebutCharge.remove(idMort);
+        dragonProchaineCharge.remove(idMort);
+        dragonMorsureAppliquee.remove(idMort);
     }
 
     /**

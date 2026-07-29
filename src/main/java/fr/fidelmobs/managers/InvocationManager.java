@@ -33,8 +33,12 @@ import java.util.stream.Collectors;
 public class InvocationManager {
 
     public static final int SLOT_INVOCATION = 1; // 2e slot de la barre d'accès rapide
+    private static final long COOLDOWN_INVOCATION_GLOBAL_MS = 15_000L;
 
     private final LoyaltyMobsPlugin plugin;
+    // Cooldown global (toutes unités confondues) : on ne peut invoquer un nouvel allié que
+    // toutes les 15 secondes, en plus de la recharge propre à chaque unité déjà en place.
+    private final Map<UUID, Long> prochaineInvocationAutorisee = new java.util.HashMap<>();
 
     public InvocationManager(LoyaltyMobsPlugin plugin) {
         this.plugin = plugin;
@@ -106,6 +110,14 @@ public class InvocationManager {
         PlayerDataManager data = plugin.getPlayerDataManager();
         UUID uuid = player.getUniqueId();
 
+        long maintenant = System.currentTimeMillis();
+        long prochaineAutorisee = prochaineInvocationAutorisee.getOrDefault(uuid, 0L);
+        if (maintenant < prochaineAutorisee) {
+            double secondesRestantes = (prochaineAutorisee - maintenant) / 1000.0;
+            player.sendMessage(String.format("§cPatiente encore %.1fs avant de pouvoir invoquer un nouvel allié.", secondesRestantes));
+            return;
+        }
+
         if (data.getNombreMob(uuid, type) <= 0) {
             player.sendMessage("§cTu ne possèdes aucun " + nomLisible(type) + " dans ta collection.");
             return;
@@ -123,6 +135,7 @@ public class InvocationManager {
         long cooldownMs = Math.max(1, plugin.getConfig().getInt("arene.invocation-cooldown-secondes", 3600)) * 1000L;
         data.utiliserUniteMob(uuid, type, cooldownMs);
         data.save(uuid);
+        prochaineInvocationAutorisee.put(uuid, maintenant + COOLDOWN_INVOCATION_GLOBAL_MS);
 
         Location spawnLoc = SpawnUtils.trouverPositionSpawnValide(player);
         Entity entite = player.getWorld().spawnEntity(spawnLoc, type);

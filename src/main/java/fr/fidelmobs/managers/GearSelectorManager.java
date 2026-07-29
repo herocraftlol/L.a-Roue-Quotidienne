@@ -71,7 +71,13 @@ public class GearSelectorManager {
         }
     }
 
+    private static final int SLOTS_PAR_PAGE = 45; // dernière ligne (9 slots) réservée à la navigation
+
     public void ouvrirMenu(Player player) {
+        ouvrirMenu(player, 0);
+    }
+
+    public void ouvrirMenu(Player player, int page) {
         PlayerDataManager data = plugin.getPlayerDataManager();
         UUID uuid = player.getUniqueId();
         List<ItemStack> equipements = data.getEquipements(uuid);
@@ -82,10 +88,10 @@ public class GearSelectorManager {
             return;
         }
 
-        // Un même matériau (armure/arme) ou un même palier de flèche ne doit jamais
+        // Un même matériau (armure/arme) ou un même modèle de flèche ne doit jamais
         // apparaître plusieurs fois dans ce menu, même si d'anciennes données en
         // contiennent plusieurs exemplaires identiques (avant l'anti-doublon de la roue).
-        // On regroupe donc par matériau/palier et on n'affiche qu'UNE icône par groupe,
+        // On regroupe donc par matériau/modèle et on n'affiche qu'UNE icône par groupe,
         // tout en restant capable d'agir sur n'importe lequel des exemplaires du groupe.
         Map<Material, List<Integer>> groupesGear = new LinkedHashMap<>();
         for (int i = 0; i < equipements.size(); i++) {
@@ -96,31 +102,56 @@ public class GearSelectorManager {
             groupesFleches.computeIfAbsent(ArrowRegistry.getModeleId(fleches.get(i)), k -> new ArrayList<>()).add(i);
         }
 
-        int nbIcones = groupesGear.size() + groupesFleches.size();
-        int nbLignes = Math.min(6, Math.max(1, ((nbIcones - 1) / 9 + 1)));
-        GearSelectorInventoryHolder holder = new GearSelectorInventoryHolder();
-        Inventory inv = Bukkit.createInventory(holder, nbLignes * 9, "§d✦ Équipement & Armes");
-        holder.setInventory(inv);
+        List<ItemStack> icones = new ArrayList<>();
 
-        // Armure/armes, triées par rareté décroissante puis par emplacement
         List<Material> materiauxTries = new ArrayList<>(groupesGear.keySet());
         materiauxTries.sort(Comparator
                 .comparing((Material m) -> GearRegistry.getRarete(equipements.get(groupesGear.get(m).get(0))))
                 .reversed());
         for (Material m : materiauxTries) {
             List<Integer> indices = groupesGear.get(m);
-            inv.addItem(creerIconeGear(data, uuid, equipements.get(indices.get(0)), indices));
+            icones.add(creerIconeGear(data, uuid, equipements.get(indices.get(0)), indices));
         }
 
-        // Flèches à effet, triées par rareté décroissante
-        List<Integer> paliersTries = new ArrayList<>(groupesFleches.keySet());
-        paliersTries.sort(Comparator.<Integer>naturalOrder().reversed());
-        for (int palier : paliersTries) {
-            List<Integer> indices = groupesFleches.get(palier);
-            inv.addItem(creerIconeFleche(data, uuid, fleches.get(indices.get(0)), indices));
+        List<Integer> modelesTries = new ArrayList<>(groupesFleches.keySet());
+        modelesTries.sort(Comparator.<Integer>naturalOrder().reversed());
+        for (int modele : modelesTries) {
+            List<Integer> indices = groupesFleches.get(modele);
+            icones.add(creerIconeFleche(data, uuid, fleches.get(indices.get(0)), indices));
+        }
+
+        int nbPages = Math.max(1, (icones.size() - 1) / SLOTS_PAR_PAGE + 1);
+        int pageBornee = Math.max(0, Math.min(page, nbPages - 1));
+
+        GearSelectorInventoryHolder holder = new GearSelectorInventoryHolder();
+        holder.setPage(pageBornee);
+        String titre = "§d✦ Équipement & Armes (" + (pageBornee + 1) + "/" + nbPages + ")";
+        Inventory inv = Bukkit.createInventory(holder, 54, titre);
+        holder.setInventory(inv);
+
+        int debut = pageBornee * SLOTS_PAR_PAGE;
+        int fin = Math.min(icones.size(), debut + SLOTS_PAR_PAGE);
+        for (int i = debut; i < fin; i++) {
+            inv.setItem(i - debut, icones.get(i));
+        }
+
+        if (pageBornee > 0) {
+            inv.setItem(45, creerIconeNav("prev", "§e« Page précédente"));
+        }
+        if (pageBornee < nbPages - 1) {
+            inv.setItem(53, creerIconeNav("next", "§ePage suivante »"));
         }
 
         player.openInventory(inv);
+    }
+
+    private ItemStack creerIconeNav(String action, String nom) {
+        ItemStack item = new ItemStack(Material.ARROW);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName(nom);
+        meta.getPersistentDataContainer().set(Cles.EQUIPEMENT_PAGE_ACTION, PersistentDataType.STRING, action);
+        item.setItemMeta(meta);
+        return item;
     }
 
     /**

@@ -351,12 +351,19 @@ public class ArenaProtectionListener implements Listener {
 
     @EventHandler
     public void onClicMenuSelecteurBloc(InventoryClickEvent event) {
-        if (!(event.getInventory().getHolder() instanceof BlockSelectorInventoryHolder)) return;
+        if (!(event.getInventory().getHolder() instanceof BlockSelectorInventoryHolder holder)) return;
         event.setCancelled(true);
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
         ItemStack clique = event.getCurrentItem();
         if (clique == null || !clique.hasItemMeta()) return;
+
+        String actionPage = clique.getItemMeta().getPersistentDataContainer().get(Cles.BLOC_PAGE_ACTION, PersistentDataType.STRING);
+        if (actionPage != null) {
+            int nouvellePage = "next".equals(actionPage) ? holder.getPage() + 1 : holder.getPage() - 1;
+            plugin.getBlockSelectorManager().ouvrirMenu(player, nouvellePage);
+            return;
+        }
 
         String nomBloc = clique.getItemMeta().getPersistentDataContainer().get(Cles.BLOC_CHOIX, PersistentDataType.STRING);
         if (nomBloc == null) return;
@@ -374,12 +381,19 @@ public class ArenaProtectionListener implements Listener {
 
     @EventHandler
     public void onClicMenuSelecteurEquipement(InventoryClickEvent event) {
-        if (!(event.getInventory().getHolder() instanceof GearSelectorInventoryHolder)) return;
+        if (!(event.getInventory().getHolder() instanceof GearSelectorInventoryHolder holder)) return;
         event.setCancelled(true);
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
         ItemStack clique = event.getCurrentItem();
         if (clique == null || !clique.hasItemMeta()) return;
+
+        String actionPage = clique.getItemMeta().getPersistentDataContainer().get(Cles.EQUIPEMENT_PAGE_ACTION, PersistentDataType.STRING);
+        if (actionPage != null) {
+            int nouvellePage = "next".equals(actionPage) ? holder.getPage() + 1 : holder.getPage() - 1;
+            plugin.getGearSelectorManager().ouvrirMenu(player, nouvellePage);
+            return;
+        }
 
         String categorie = clique.getItemMeta().getPersistentDataContainer()
                 .get(Cles.EQUIPEMENT_CHOIX_CATEGORIE, PersistentDataType.STRING);
@@ -397,7 +411,7 @@ public class ArenaProtectionListener implements Listener {
         event.setCancelled(true);
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
-        plugin.getDefiManager().gererClicNavigation(player, holder, event.getRawSlot());
+        plugin.getDefiManager().gererClic(player, holder, event.getRawSlot(), event.getCurrentItem());
     }
 
     @EventHandler

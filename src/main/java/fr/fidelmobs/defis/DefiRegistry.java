@@ -317,6 +317,16 @@ public final class DefiRegistry {
 
     public static final List<Defi> GLOBAL = Collections.unmodifiableList(BASE);
 
+    private static final java.util.Map<String, Defi> PAR_ID = new java.util.HashMap<>();
+
+    static {
+        for (Defi d : GLOBAL) PAR_ID.put(d.id(), d);
+    }
+
+    public static Defi parId(String id) {
+        return PAR_ID.get(id);
+    }
+
     private static boolean auMoinsUneCombinaisonForte(List<ItemStack> equipements) {
         return equipements.stream().anyMatch(i -> i.hasItemMeta() && i.getItemMeta().getEnchants().size() >= 2);
     }

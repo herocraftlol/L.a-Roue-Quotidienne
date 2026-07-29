@@ -16,11 +16,13 @@ public final class Cles {
     public static final NamespacedKey INVOCATION_TYPE = new NamespacedKey("fidelmobs", "invocation_type");
     public static final NamespacedKey BLOC_SELECTEUR = new NamespacedKey("fidelmobs", "bloc_selecteur");
     public static final NamespacedKey BLOC_CHOIX = new NamespacedKey("fidelmobs", "bloc_choix");
+    public static final NamespacedKey BLOC_PAGE_ACTION = new NamespacedKey("fidelmobs", "bloc_page_action");
 
     // Sélecteur d'équipement (GUI armes/armure/flèches, avant-avant-dernier slot de la hotbar)
     public static final NamespacedKey EQUIPEMENT_SELECTEUR = new NamespacedKey("fidelmobs", "equipement_selecteur");
     public static final NamespacedKey EQUIPEMENT_CHOIX_INDEX = new NamespacedKey("fidelmobs", "equipement_choix_index");
     public static final NamespacedKey EQUIPEMENT_CHOIX_CATEGORIE = new NamespacedKey("fidelmobs", "equipement_choix_categorie");
+    public static final NamespacedKey EQUIPEMENT_PAGE_ACTION = new NamespacedKey("fidelmobs", "equipement_page_action");
 
     // Flèches à effet (collection obtenue à la roue, équipables/tirables avec l'arc du kit)
     public static final NamespacedKey FLECHE_RARETE = new NamespacedKey("fidelmobs", "fleche_rarete");
@@ -37,4 +39,8 @@ public final class Cles {
     // Item actif représentant le pouvoir actuellement équipé (5e slot de la hotbar)
     public static final NamespacedKey POUVOIR_ACTIF = new NamespacedKey("fidelmobs", "pouvoir_actif");
     public static final NamespacedKey POUVOIR_ID = new NamespacedKey("fidelmobs", "pouvoir_id");
+
+    // Menu /defi : identifie le défi représenté par une icône, pour la récupération manuelle
+    public static final NamespacedKey DEFI_ID = new NamespacedKey("fidelmobs", "defi_id");
+    public static final NamespacedKey DEFI_QUOTIDIEN = new NamespacedKey("fidelmobs", "defi_quotidien");
 }

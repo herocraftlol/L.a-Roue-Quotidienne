@@ -18,11 +18,24 @@ public final class BlockRegistry {
     private static final Map<Material, MobRarity> RARETE_PAR_BLOC = new LinkedHashMap<>();
 
     static {
-        put(MobRarity.COMMUN, Material.DIRT, Material.COBBLESTONE, Material.ANDESITE, Material.OAK_PLANKS);
-        put(MobRarity.PEU_COMMUN, Material.STONE_BRICKS, Material.MOSSY_COBBLESTONE, Material.SANDSTONE, Material.BRICKS);
-        put(MobRarity.RARE, Material.IRON_BLOCK, Material.POLISHED_BLACKSTONE, Material.DEEPSLATE_BRICKS);
-        put(MobRarity.EPIQUE, Material.GOLD_BLOCK, Material.DIAMOND_BLOCK, Material.PURPUR_BLOCK);
-        put(MobRarity.LEGENDAIRE, Material.OBSIDIAN, Material.NETHERITE_BLOCK, Material.EMERALD_BLOCK);
+        put(MobRarity.COMMUN, Material.DIRT, Material.COBBLESTONE, Material.ANDESITE, Material.OAK_PLANKS,
+                Material.SPRUCE_PLANKS, Material.BIRCH_PLANKS, Material.JUNGLE_PLANKS, Material.ACACIA_PLANKS,
+                Material.DARK_OAK_PLANKS, Material.MANGROVE_PLANKS, Material.CHERRY_PLANKS, Material.BAMBOO_PLANKS,
+                Material.GRANITE, Material.DIORITE, Material.MOSS_BLOCK, Material.COARSE_DIRT,
+                Material.MUD, Material.PODZOL, Material.TUFF, Material.SMOOTH_STONE);
+        put(MobRarity.PEU_COMMUN, Material.STONE_BRICKS, Material.MOSSY_COBBLESTONE, Material.SANDSTONE, Material.BRICKS,
+                Material.RED_SANDSTONE, Material.SMOOTH_SANDSTONE, Material.CHISELED_STONE_BRICKS, Material.MOSSY_STONE_BRICKS,
+                Material.POLISHED_ANDESITE, Material.POLISHED_DIORITE, Material.POLISHED_GRANITE, Material.NETHER_BRICKS,
+                Material.RED_NETHER_BRICKS, Material.PRISMARINE, Material.TERRACOTTA, Material.HONEYCOMB_BLOCK);
+        put(MobRarity.RARE, Material.IRON_BLOCK, Material.POLISHED_BLACKSTONE, Material.DEEPSLATE_BRICKS,
+                Material.COPPER_BLOCK, Material.WEATHERED_COPPER, Material.OXIDIZED_COPPER, Material.BLACKSTONE,
+                Material.POLISHED_DEEPSLATE, Material.DEEPSLATE_TILES, Material.CHISELED_DEEPSLATE,
+                Material.END_STONE, Material.END_STONE_BRICKS, Material.QUARTZ_BLOCK);
+        put(MobRarity.EPIQUE, Material.GOLD_BLOCK, Material.DIAMOND_BLOCK, Material.PURPUR_BLOCK,
+                Material.LAPIS_BLOCK, Material.REDSTONE_BLOCK, Material.COAL_BLOCK, Material.RAW_IRON_BLOCK,
+                Material.RAW_GOLD_BLOCK, Material.RAW_COPPER_BLOCK, Material.PURPUR_PILLAR, Material.AMETHYST_BLOCK);
+        put(MobRarity.LEGENDAIRE, Material.OBSIDIAN, Material.NETHERITE_BLOCK, Material.EMERALD_BLOCK,
+                Material.CRYING_OBSIDIAN, Material.ANCIENT_DEBRIS, Material.SCULK, Material.SEA_LANTERN);
     }
 
     private static void put(MobRarity rarete, Material... blocs) {
@@ -142,19 +155,19 @@ public final class BlockRegistry {
         for (MobRarity r : MobRarity.values()) poidsTotal += r.getPoids();
 
         int tirage = RANDOM.nextInt(poidsTotal);
-        final MobRarity[] rareteTiree = {MobRarity.COMMUN};
+        MobRarity rareteTiree = MobRarity.COMMUN;
         int cumul = 0;
         for (MobRarity r : MobRarity.values()) {
             cumul += r.getPoids();
             if (tirage < cumul) {
-                rareteTiree[0] = r;
+                rareteTiree = r;
                 break;
             }
         }
 
-        final MobRarity finalRarete = rareteTiree[0];
+        final MobRarity finaleRarete = rareteTiree;
         List<Material> candidats = RARETE_PAR_BLOC.entrySet().stream()
-                .filter(e -> e.getValue() == finalRarete)
+                .filter(e -> e.getValue() == finaleRarete)
                 .map(Map.Entry::getKey)
                 .toList();
 

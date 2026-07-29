@@ -1,8 +1,41 @@
 # LoyaltyMobs
 
+![Version](https://img.shields.io/badge/Version-1.0.35-blue)
+![Paper](https://img.shields.io/badge/Paper-1.21-green)
+![Java](https://img.shields.io/badge/Java-21-orange)
+
 Plugin Paper 1.21 de fidélisation par connexions journalières, avec collection permanente de
 mobs/blocs/équipements à la "roue" façon cartes à collectionner, et une arène PvP configurable
 avec ses propres règles. Boutique en argent réel optionnelle pour acheter des tickets de roue.
+
+## 📥 Télécharger
+
+Téléchargez la dernière version ici : **[Releases](https://github.com/herocraftlol/L.a-Roue-Quotidienne/releases)**
+
+## 🆕 Dernières nouveautés (v1.0.35)
+
+- **Améliorations de l'arène PvP** : Optimisation des systèmes de combat et de gestion des blocs
+- **Nouvelles flèches magiques** : Ajout de modèles de flèches avec effets supplémentaires
+- **Système de pouvoirs spéciaux** : Amélioration du système de pouvoirs avec de nouveaux effets et une meilleure gestion des cooldowns
+- **Optimisations générales** : Amélioration des performances et corrections de bugs
+- **Corrections de compilation** : Ajustements pour une meilleure compatibilité avec Paper 1.21
+
+---
+
+## 📜 Changelog
+
+### v1.0.35
+- Amélioration du système d'arène et de combat
+- Nouvelles flèches magiques avec effets supplémentaires
+- Système de pouvoirs spéciaux optimisé
+- Corrections et optimisations générales
+
+### v1.0.33
+- Mise à jour des dépendances
+- Améliorations de stabilité
+
+### v1.0.32
+- Corrections de bugs
 
 ## Fonctionnalités
 

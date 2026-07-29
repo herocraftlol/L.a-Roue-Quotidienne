@@ -494,6 +494,20 @@ public class PlayerDataManager {
         get(uuid).set("defis_completes." + id, true);
     }
 
+    /**
+     * Un défi accompli ne verse sa récompense que lorsque le joueur clique sur "Récupérer"
+     * dans le menu /defi (voir DefiManager) : ces méthodes suivent cet état séparément de
+     * la complétion elle-même, pour qu'aucun message ne s'affiche automatiquement dès que
+     * le défi est réussi.
+     */
+    public boolean estDefiRecupere(UUID uuid, String id) {
+        return get(uuid).getBoolean("defis_recuperes." + id, false);
+    }
+
+    public void marquerDefiRecupere(UUID uuid, String id) {
+        get(uuid).set("defis_recuperes." + id, true);
+    }
+
     // ---- Défis quotidiens (compteurs et complétions remis à zéro chaque jour) ----
     // Le pool de défis proposés est le même pour tout le monde un jour donné (tiré au sort
     // de façon déterministe à partir de la date, voir DefiRegistry#defisQuotidiensDuJour) :
@@ -508,6 +522,7 @@ public class PlayerDataManager {
             get(uuid).set("defis_quotidiens.date", aujourdHui);
             get(uuid).set("defis_quotidiens.compteurs", null);
             get(uuid).set("defis_quotidiens.completes", null);
+            get(uuid).set("defis_quotidiens.recuperes", null);
         }
     }
 
@@ -529,5 +544,15 @@ public class PlayerDataManager {
     public void marquerDefiQuotidienComplete(UUID uuid, String id) {
         assurerJourQuotidienAJour(uuid);
         get(uuid).set("defis_quotidiens.completes." + id, true);
+    }
+
+    public boolean estDefiQuotidienRecupere(UUID uuid, String id) {
+        assurerJourQuotidienAJour(uuid);
+        return get(uuid).getBoolean("defis_quotidiens.recuperes." + id, false);
+    }
+
+    public void marquerDefiQuotidienRecupere(UUID uuid, String id) {
+        assurerJourQuotidienAJour(uuid);
+        get(uuid).set("defis_quotidiens.recuperes." + id, true);
     }
 }

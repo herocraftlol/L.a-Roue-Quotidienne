@@ -65,7 +65,13 @@ public class BlockSelectorManager {
         }
     }
 
+    private static final int SLOTS_PAR_PAGE = 45; // dernière ligne (9 slots) réservée à la navigation
+
     public void ouvrirMenu(Player player) {
+        ouvrirMenu(player, 0);
+    }
+
+    public void ouvrirMenu(Player player, int page) {
         PlayerDataManager data = plugin.getPlayerDataManager();
         UUID uuid = player.getUniqueId();
         Set<Material> debloques = data.getBlocsDebloques(uuid);
@@ -81,17 +87,40 @@ public class BlockSelectorManager {
                 .reversed()
                 .thenComparing(Enum::name));
 
-        int taille = Math.min(54, Math.max(9, ((tries.size() - 1) / 9 + 1) * 9));
+        int nbPages = Math.max(1, (tries.size() - 1) / SLOTS_PAR_PAGE + 1);
+        int pageBornee = Math.max(0, Math.min(page, nbPages - 1));
+
         BlockSelectorInventoryHolder holder = new BlockSelectorInventoryHolder();
-        Inventory inv = Bukkit.createInventory(holder, taille, "§b✦ Choisir un bloc");
+        holder.setPage(pageBornee);
+        String titre = "§b✦ Choisir un bloc (" + (pageBornee + 1) + "/" + nbPages + ")";
+        Inventory inv = Bukkit.createInventory(holder, 54, titre);
         holder.setInventory(inv);
 
         Material actif = data.getBlocActif(uuid);
-        for (Material m : tries) {
-            inv.addItem(creerIcone(m, m.equals(actif)));
+        int debut = pageBornee * SLOTS_PAR_PAGE;
+        int fin = Math.min(tries.size(), debut + SLOTS_PAR_PAGE);
+        for (int i = debut; i < fin; i++) {
+            Material m = tries.get(i);
+            inv.setItem(i - debut, creerIcone(m, m.equals(actif)));
+        }
+
+        if (pageBornee > 0) {
+            inv.setItem(45, creerIconeNav("prev", "§e« Page précédente"));
+        }
+        if (pageBornee < nbPages - 1) {
+            inv.setItem(53, creerIconeNav("next", "§ePage suivante »"));
         }
 
         player.openInventory(inv);
+    }
+
+    private ItemStack creerIconeNav(String action, String nom) {
+        ItemStack item = new ItemStack(Material.ARROW);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName(nom);
+        meta.getPersistentDataContainer().set(Cles.BLOC_PAGE_ACTION, PersistentDataType.STRING, action);
+        item.setItemMeta(meta);
+        return item;
     }
 
     public void choisir(Player player, Material material) {

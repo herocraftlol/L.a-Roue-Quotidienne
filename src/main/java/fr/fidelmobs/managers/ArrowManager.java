@@ -84,8 +84,19 @@ public class ArrowManager {
         }, INTERVALLE_AFFICHAGE_TICKS, INTERVALLE_AFFICHAGE_TICKS);
     }
 
-    private long cooldownMs() {
-        return Math.max(1, plugin.getConfig().getInt("arene.arc-cooldown-secondes", 3)) * 1000L;
+    /**
+     * Temps de recharge de l'arc, plus long pour les flèches les plus puissantes : une
+     * flèche légendaire (Poison III + dégâts + Lenteur...) ne doit pas se tirer aussi vite
+     * qu'une flèche commune, sous peine de rendre les paliers de rareté inférieurs inutiles
+     * en combat. +1 seconde par palier de rareté au-dessus du Commun.
+     */
+    private long cooldownMs(UUID uuid) {
+        long base = Math.max(1, plugin.getConfig().getInt("arene.arc-cooldown-secondes", 3)) * 1000L;
+        PlayerDataManager data = plugin.getPlayerDataManager();
+        int index = data.getIndexFlecheEquipee(uuid);
+        List<ItemStack> fleches = data.getFleches(uuid);
+        int tier = (index >= 0 && index < fleches.size()) ? ArrowRegistry.getRarete(fleches.get(index)) : 0;
+        return base + tier * 1000L;
     }
 
     private ItemStack creerArc() {
@@ -192,7 +203,7 @@ public class ArrowManager {
             return;
         }
 
-        prochainTirAutorise.put(player.getUniqueId(), maintenant + cooldownMs());
+        prochainTirAutorise.put(player.getUniqueId(), maintenant + cooldownMs(player.getUniqueId()));
         enAttenteMessagePret.add(player.getUniqueId());
         event.setConsumeItem(false);
         player.playSound(player.getLocation(), Sound.ENTITY_ARROW_SHOOT, 0.8f, 1.2f);
@@ -205,7 +216,7 @@ public class ArrowManager {
         // client grise l'arc et empêche tout redessin/tir tant qu'il n'est pas écoulé.
         // C'est la protection principale contre un tir pendant le timer ; la vérification
         // par horodatage ci-dessus reste un filet de sécurité côté serveur en complément.
-        player.setCooldown(Material.BOW, (int) Math.max(1, cooldownMs() / 50L));
+        player.setCooldown(Material.BOW, (int) Math.max(1, cooldownMs(player.getUniqueId()) / 50L));
 
         // Filet de sécurité : l'enchantement Infinity ne fonctionne nativement qu'avec des
         // flèches simples sans NBT, pas avec nos flèches à effet (nom, lore, données

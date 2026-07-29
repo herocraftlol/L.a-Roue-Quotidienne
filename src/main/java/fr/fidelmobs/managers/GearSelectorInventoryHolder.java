@@ -10,6 +10,7 @@ import org.bukkit.inventory.InventoryHolder;
 public class GearSelectorInventoryHolder implements InventoryHolder {
 
     private Inventory inventory;
+    private int page;
 
     @Override
     public Inventory getInventory() {
@@ -18,5 +19,13 @@ public class GearSelectorInventoryHolder implements InventoryHolder {
 
     public void setInventory(Inventory inventory) {
         this.inventory = inventory;
+    }
+
+    public int getPage() {
+        return page;
+    }
+
+    public void setPage(int page) {
+        this.page = page;
     }
 }
