@@ -62,29 +62,9 @@ boutique:
   # faits depuis le site web (table pending_ticket_grants)
   sync-interval-seconds: 15
 
-# =========================================================
-#  Arene de strategie en ligne (jeu de plateau tour par tour entre joueurs
-#  sur le site web, avec les mobs de la collection /armee comme unites)
-#  ENTIEREMENT OPTIONNEL, utilise la MEME base MySQL partagee que la boutique.
-#  Voir mc-site/server/README-ARENE.md pour l'installation complete du site.
-# =========================================================
-strategie-web:
-  enabled: false
-
-  # URL publique de l'arene en ligne, utilisee par /lier pour envoyer un lien cliquable
-  url: "https://tonsite.fr/arene.html"
-
-  # Duree de validite d'un code de liaison genere par /lier (minutes)
-  lien-expiration-minutes: 10
-
-  # Intervalle (secondes) auquel la collection de chaque joueur CONNECTE est
-  # resynchronisee vers MySQL (en plus d'une synchro immediate a /lier et a la deconnexion)
-  sync-interval-seconds: 20
-
 mysql:
-  # Base MySQL partagee avec le micro-service du site web (website-node/) ET/OU l'arene de
-  # strategie (mc-site/server/). N'est utilisee QUE si boutique.enabled OU
-  # strategie-web.enabled est a true ci-dessus.
+  # Base MySQL partagee avec le micro-service du site web (website-node/).
+  # N'est utilisee QUE si boutique.enabled est a true ci-dessus.
   host: "127.0.0.1"
   port: 3306
   database: "loyaltymobs_shop"

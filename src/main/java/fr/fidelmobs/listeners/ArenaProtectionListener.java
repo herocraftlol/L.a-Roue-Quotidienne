@@ -392,6 +392,15 @@ public class ArenaProtectionListener implements Listener {
     }
 
     @EventHandler
+    public void onClicMenuDefis(InventoryClickEvent event) {
+        if (!(event.getInventory().getHolder() instanceof fr.fidelmobs.defis.DefiInventoryHolder holder)) return;
+        event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+
+        plugin.getDefiManager().gererClicNavigation(player, holder, event.getRawSlot());
+    }
+
+    @EventHandler
     public void onClicMenuSelecteurPouvoir(InventoryClickEvent event) {
         if (!(event.getInventory().getHolder() instanceof PowerSelectorInventoryHolder)) return;
         event.setCancelled(true);
@@ -514,9 +523,15 @@ public class ArenaProtectionListener implements Listener {
 
         PlayerDataManager data = plugin.getPlayerDataManager();
         data.ajouterMort(victime.getUniqueId());
+        data.incrementerCompteurQuotidien(victime.getUniqueId(), "morts", 1);
+        data.definirCompteur(victime.getUniqueId(), "serie_kills_actuelle", 0);
         data.save(victime.getUniqueId());
         if (tueurUuid != null) {
             data.ajouterKill(tueurUuid);
+            data.incrementerCompteurQuotidien(tueurUuid, "kills", 1);
+            int nouvelleSerie = data.getCompteur(tueurUuid, "serie_kills_actuelle") + 1;
+            data.incrementerCompteur(tueurUuid, "serie_kills_actuelle", 1);
+            data.enregistrerRecord(tueurUuid, "meilleure_serie_kills", nouvelleSerie);
             int points = Math.max(0, plugin.getConfig().getInt("arene.points-par-kill", 15));
             data.ajouterPoints(tueurUuid, points);
             data.save(tueurUuid);

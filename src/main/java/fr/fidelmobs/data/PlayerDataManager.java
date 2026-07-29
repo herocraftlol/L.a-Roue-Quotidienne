@@ -442,6 +442,13 @@ public class PlayerDataManager {
 
     public void ajouterPoints(UUID uuid, int montant) {
         get(uuid).set("points", getPoints(uuid) + montant);
+        // Compteurs dédiés au système de défis : contrairement au solde de points (qui
+        // peut être dépensé), ces compteurs ne font qu'augmenter, donc utilisables comme
+        // objectif de progression fiable ("gagner X points au total").
+        if (montant > 0) {
+            incrementerCompteur(uuid, "points_gagnes_total", montant);
+            incrementerCompteurQuotidien(uuid, "points_gagnes", montant);
+        }
     }
 
     /**
@@ -452,5 +459,75 @@ public class PlayerDataManager {
         if (solde < montant) return false;
         get(uuid).set("points", solde - montant);
         return true;
+    }
+
+    // ---- Compteurs génériques (système de défis) ----
+    // Sert de base à la plupart des défis qui ne correspondent à aucune statistique déjà
+    // suivie ailleurs (nombre de tirages à la roue, d'invocations, de flèches tirées...).
+
+    public int getCompteur(UUID uuid, String cle) {
+        return get(uuid).getInt("compteurs." + cle, 0);
+    }
+
+    public void incrementerCompteur(UUID uuid, String cle, int delta) {
+        get(uuid).set("compteurs." + cle, getCompteur(uuid, cle) + delta);
+    }
+
+    public void definirCompteur(UUID uuid, String cle, int valeur) {
+        get(uuid).set("compteurs." + cle, valeur);
+    }
+
+    /** Ne retient que la plus grande valeur jamais atteinte (ex. meilleure série de kills). */
+    public void enregistrerRecord(UUID uuid, String cle, int valeur) {
+        if (valeur > getCompteur(uuid, cle)) {
+            get(uuid).set("compteurs." + cle, valeur);
+        }
+    }
+
+    // ---- Défis globaux (progression permanente, ne se réinitialise jamais) ----
+
+    public boolean estDefiComplete(UUID uuid, String id) {
+        return get(uuid).getBoolean("defis_completes." + id, false);
+    }
+
+    public void marquerDefiComplete(UUID uuid, String id) {
+        get(uuid).set("defis_completes." + id, true);
+    }
+
+    // ---- Défis quotidiens (compteurs et complétions remis à zéro chaque jour) ----
+    // Le pool de défis proposés est le même pour tout le monde un jour donné (tiré au sort
+    // de façon déterministe à partir de la date, voir DefiRegistry#defisQuotidiensDuJour) :
+    // seule la PROGRESSION de chaque joueur est individuelle et stockée ici. La réinitialisation
+    // se fait paresseusement : dès qu'on constate que la date stockée n'est plus celle
+    // d'aujourd'hui, compteurs et complétions quotidiens sont effacés avant de continuer.
+
+    private void assurerJourQuotidienAJour(UUID uuid) {
+        String aujourdHui = LocalDate.now().toString();
+        String dernier = get(uuid).getString("defis_quotidiens.date");
+        if (!aujourdHui.equals(dernier)) {
+            get(uuid).set("defis_quotidiens.date", aujourdHui);
+            get(uuid).set("defis_quotidiens.compteurs", null);
+            get(uuid).set("defis_quotidiens.completes", null);
+        }
+    }
+
+    public int getCompteurQuotidien(UUID uuid, String cle) {
+        assurerJourQuotidienAJour(uuid);
+        return get(uuid).getInt("defis_quotidiens.compteurs." + cle, 0);
+    }
+
+    public void incrementerCompteurQuotidien(UUID uuid, String cle, int delta) {
+        assurerJourQuotidienAJour(uuid);
+        get(uuid).set("defis_quotidiens.compteurs." + cle, getCompteurQuotidien(uuid, cle) + delta);
+    }
+
+    public boolean estDefiQuotidienComplete(UUID uuid, String id) {
+        assurerJourQuotidienAJour(uuid);
+        return get(uuid).getBoolean("defis_quotidiens.completes." + id, false);
+    }
+
+    public void marquerDefiQuotidienComplete(UUID uuid, String id) {
+        assurerJourQuotidienAJour(uuid);
+        get(uuid).set("defis_quotidiens.completes." + id, true);
     }
 }

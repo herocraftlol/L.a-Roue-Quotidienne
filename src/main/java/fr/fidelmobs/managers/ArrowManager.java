@@ -197,6 +197,10 @@ public class ArrowManager {
         event.setConsumeItem(false);
         player.playSound(player.getLocation(), Sound.ENTITY_ARROW_SHOOT, 0.8f, 1.2f);
 
+        PlayerDataManager data = plugin.getPlayerDataManager();
+        data.incrementerCompteur(player.getUniqueId(), "fleches_tirees", 1);
+        data.incrementerCompteurQuotidien(player.getUniqueId(), "fleches_tirees", 1);
+
         // Cooldown natif de l'objet (comme pour une perle de l'ender ou un bouclier) : le
         // client grise l'arc et empêche tout redessin/tir tant qu'il n'est pas écoulé.
         // C'est la protection principale contre un tir pendant le timer ; la vérification

@@ -17,7 +17,9 @@ import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -80,29 +82,42 @@ public class GearSelectorManager {
             return;
         }
 
-        int nbLignes = Math.min(6, Math.max(1, ((equipements.size() + fleches.size() - 1) / 9 + 1)));
+        // Un même matériau (armure/arme) ou un même palier de flèche ne doit jamais
+        // apparaître plusieurs fois dans ce menu, même si d'anciennes données en
+        // contiennent plusieurs exemplaires identiques (avant l'anti-doublon de la roue).
+        // On regroupe donc par matériau/palier et on n'affiche qu'UNE icône par groupe,
+        // tout en restant capable d'agir sur n'importe lequel des exemplaires du groupe.
+        Map<Material, List<Integer>> groupesGear = new LinkedHashMap<>();
+        for (int i = 0; i < equipements.size(); i++) {
+            groupesGear.computeIfAbsent(equipements.get(i).getType(), k -> new ArrayList<>()).add(i);
+        }
+        Map<Integer, List<Integer>> groupesFleches = new LinkedHashMap<>();
+        for (int i = 0; i < fleches.size(); i++) {
+            groupesFleches.computeIfAbsent(ArrowRegistry.getModeleId(fleches.get(i)), k -> new ArrayList<>()).add(i);
+        }
+
+        int nbIcones = groupesGear.size() + groupesFleches.size();
+        int nbLignes = Math.min(6, Math.max(1, ((nbIcones - 1) / 9 + 1)));
         GearSelectorInventoryHolder holder = new GearSelectorInventoryHolder();
         Inventory inv = Bukkit.createInventory(holder, nbLignes * 9, "§d✦ Équipement & Armes");
         holder.setInventory(inv);
 
         // Armure/armes, triées par rareté décroissante puis par emplacement
-        List<Integer> indicesGear = new ArrayList<>();
-        for (int i = 0; i < equipements.size(); i++) indicesGear.add(i);
-        indicesGear.sort(Comparator
-                .comparing((Integer i) -> GearRegistry.getRarete(equipements.get(i)))
+        List<Material> materiauxTries = new ArrayList<>(groupesGear.keySet());
+        materiauxTries.sort(Comparator
+                .comparing((Material m) -> GearRegistry.getRarete(equipements.get(groupesGear.get(m).get(0))))
                 .reversed());
-        for (int i : indicesGear) {
-            inv.addItem(creerIconeGear(data, uuid, equipements.get(i), i));
+        for (Material m : materiauxTries) {
+            List<Integer> indices = groupesGear.get(m);
+            inv.addItem(creerIconeGear(data, uuid, equipements.get(indices.get(0)), indices));
         }
 
         // Flèches à effet, triées par rareté décroissante
-        List<Integer> indicesFleches = new ArrayList<>();
-        for (int i = 0; i < fleches.size(); i++) indicesFleches.add(i);
-        indicesFleches.sort(Comparator
-                .comparing((Integer i) -> ArrowRegistry.getRarete(fleches.get(i)))
-                .reversed());
-        for (int i : indicesFleches) {
-            inv.addItem(creerIconeFleche(data, uuid, fleches.get(i), i));
+        List<Integer> paliersTries = new ArrayList<>(groupesFleches.keySet());
+        paliersTries.sort(Comparator.<Integer>naturalOrder().reversed());
+        for (int palier : paliersTries) {
+            List<Integer> indices = groupesFleches.get(palier);
+            inv.addItem(creerIconeFleche(data, uuid, fleches.get(indices.get(0)), indices));
         }
 
         player.openInventory(inv);
@@ -146,13 +161,14 @@ public class GearSelectorManager {
         }
     }
 
-    private ItemStack creerIconeGear(PlayerDataManager data, UUID uuid, ItemStack original, int index) {
+    private ItemStack creerIconeGear(PlayerDataManager data, UUID uuid, ItemStack original, List<Integer> indices) {
         ItemStack icone = original.clone();
         icone.setAmount(1);
         ItemMeta meta = icone.getItemMeta();
         GearRegistry.TypeEquipement type = GearRegistry.getType(original);
         MobRarity rarete = MobRarity.values()[GearRegistry.getRarete(original)];
-        boolean equipe = type != null && data.getIndexEquipe(uuid, type.slot) == index;
+        int indexActuel = type != null ? data.getIndexEquipe(uuid, type.slot) : -1;
+        boolean equipe = indices.contains(indexActuel);
 
         List<String> lore = new ArrayList<>();
         if (meta.hasLore()) lore.addAll(meta.getLore());
@@ -162,22 +178,28 @@ public class GearSelectorManager {
         if (enchants != null) {
             lore.add("§7Enchantements : §f" + enchants);
         }
+        if (indices.size() > 1) {
+            lore.add("§8×" + indices.size() + " exemplaires en collection");
+        }
         lore.add("");
         lore.add(equipe ? "§aÉquipé" : "§eClique pour équiper !");
         meta.setLore(lore);
 
+        // Le clic agit sur le premier exemplaire du groupe : tous les exemplaires d'un même
+        // matériau étant strictement identiques (même type+tier), peu importe lequel est
+        // réellement équipé en interne.
         meta.getPersistentDataContainer().set(Cles.EQUIPEMENT_CHOIX_CATEGORIE, PersistentDataType.STRING, CATEGORIE_GEAR);
-        meta.getPersistentDataContainer().set(Cles.EQUIPEMENT_CHOIX_INDEX, PersistentDataType.INTEGER, index);
+        meta.getPersistentDataContainer().set(Cles.EQUIPEMENT_CHOIX_INDEX, PersistentDataType.INTEGER, indices.get(0));
         icone.setItemMeta(meta);
         return icone;
     }
 
-    private ItemStack creerIconeFleche(PlayerDataManager data, UUID uuid, ItemStack original, int index) {
+    private ItemStack creerIconeFleche(PlayerDataManager data, UUID uuid, ItemStack original, List<Integer> indices) {
         ItemStack icone = original.clone();
         icone.setAmount(1);
         ItemMeta meta = icone.getItemMeta();
         MobRarity rarete = MobRarity.values()[ArrowRegistry.getRarete(original)];
-        boolean equipee = data.getIndexFlecheEquipee(uuid) == index;
+        boolean equipee = indices.contains(data.getIndexFlecheEquipee(uuid));
 
         List<String> lore = new ArrayList<>();
         lore.add("§7Rareté : " + rarete.getCouleur() + rarete.getLabel());
@@ -185,12 +207,15 @@ public class GearSelectorManager {
         if (effet != null) {
             lore.add("§7Effet : " + effet);
         }
+        if (indices.size() > 1) {
+            lore.add("§8×" + indices.size() + " exemplaires en collection");
+        }
         lore.add("");
         lore.add(equipee ? "§aFlèche actuellement équipée" : "§eClique pour équiper !");
         meta.setLore(lore);
 
         meta.getPersistentDataContainer().set(Cles.EQUIPEMENT_CHOIX_CATEGORIE, PersistentDataType.STRING, CATEGORIE_FLECHE);
-        meta.getPersistentDataContainer().set(Cles.EQUIPEMENT_CHOIX_INDEX, PersistentDataType.INTEGER, index);
+        meta.getPersistentDataContainer().set(Cles.EQUIPEMENT_CHOIX_INDEX, PersistentDataType.INTEGER, indices.get(0));
         icone.setItemMeta(meta);
         return icone;
     }

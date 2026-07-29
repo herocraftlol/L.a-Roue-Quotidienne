@@ -25,6 +25,7 @@ public final class Cles {
     // Flèches à effet (collection obtenue à la roue, équipables/tirables avec l'arc du kit)
     public static final NamespacedKey FLECHE_RARETE = new NamespacedKey("fidelmobs", "fleche_rarete");
     public static final NamespacedKey FLECHE_MARQUEUR = new NamespacedKey("fidelmobs", "fleche_marqueur");
+    public static final NamespacedKey FLECHE_MODELE_ID = new NamespacedKey("fidelmobs", "fleche_modele_id");
 
     // Arc du kit (4e slot de la hotbar)
     public static final NamespacedKey ARC_KIT = new NamespacedKey("fidelmobs", "arc_kit");

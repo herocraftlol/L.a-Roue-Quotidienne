@@ -202,6 +202,8 @@ public class PowerUseManager {
 
         data.utiliserUnitePouvoir(uuid, id, cooldownMs());
         data.save(uuid);
+        data.incrementerCompteur(uuid, "pouvoirs_utilises", 1);
+        data.incrementerCompteurQuotidien(uuid, "pouvoirs_utilises", 1);
 
         int restantes = disponibles - 1;
         String suffixe = restantes > 0

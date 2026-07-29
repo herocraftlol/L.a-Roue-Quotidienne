@@ -155,6 +155,10 @@ public class BuildBlockManager {
         int n = charges.getOrDefault(uuid, 0);
         charges.put(uuid, Math.max(0, n - 1));
 
+        PlayerDataManager data = plugin.getPlayerDataManager();
+        data.incrementerCompteur(uuid, "blocs_poses", 1);
+        data.incrementerCompteurQuotidien(uuid, "blocs_poses", 1);
+
         Material typePose = block.getType();
         Location loc = block.getLocation();
         int dureeVie = plugin.getConfig().getInt("arene.duree-vie-bloc-secondes", 10);

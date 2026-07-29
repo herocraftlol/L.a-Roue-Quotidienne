@@ -42,6 +42,11 @@ public final class BlockRegistry {
         return RARETE_PAR_BLOC.containsKey(m);
     }
 
+    /** Nombre total de blocs distincts obtenables, utilisé par le système de défis. */
+    public static int getNombreTotal() {
+        return RARETE_PAR_BLOC.size();
+    }
+
     /**
      * Tire un bloc au hasard en excluant, tant que c'est possible, les blocs déjà débloqués
      * par le joueur : la roue ne renvoie un doublon que si la collection est déjà complète.
@@ -147,9 +152,9 @@ public final class BlockRegistry {
             }
         }
 
-        final MobRarity rareteFinal = rareteTiree[0];
+        final MobRarity finalRarete = rareteTiree[0];
         List<Material> candidats = RARETE_PAR_BLOC.entrySet().stream()
-                .filter(e -> e.getValue() == rareteFinal)
+                .filter(e -> e.getValue() == finalRarete)
                 .map(Map.Entry::getKey)
                 .toList();
 

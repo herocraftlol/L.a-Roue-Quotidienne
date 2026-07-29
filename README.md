@@ -1,23 +1,8 @@
-# 🎰 LoyaltyMobs - La Roue Quotidienne
+# LoyaltyMobs
 
-![Version](https://img.shields.io/badge/Version-1.0.32-blue)
-![Minecraft](https://img.shields.io/badge/Minecraft-1.21-green)
-![Paper](https://img.shields.io/badge/Paper-1.21-yellow)
-
-**LoyaltyMobs** est un plugin Paper 1.21 de fidélisation pour serveurs Minecraft, offrant un système de connexion quotidienne avec une mécanique de "roue" façon cartes à collectionner, une arène PvP unique, et une boutique optionnelle.
-
-## 📥 Téléchargement
-
-Téléchargez la dernière version sur la [page des releases](https://github.com/herocraftlol/L.a-Roue-Quotidienne/releases/latest) !
-
-### ✨ Qu'est-ce que c'est ?
-
-Imaginez un système de récompenses quotidiennes où chaque connexion vous fait tourner une roue magique pour collecter :
-- **Des mobs uniques** qui deviennent vos alliés permanents
-- **Des blocs de construction** pour personnaliser votre espace en arène
-- **Des équipements** allant du cuir à la netherite
-
-Le tout avec une arène PvP dédiée où vos mobs invoqués se battent à vos côtés !
+Plugin Paper 1.21 de fidélisation par connexions journalières, avec collection permanente de
+mobs/blocs/équipements à la "roue" façon cartes à collectionner, et une arène PvP configurable
+avec ses propres règles. Boutique en argent réel optionnelle pour acheter des tickets de roue.
 
 ## Fonctionnalités
 
@@ -164,26 +149,3 @@ mysql:
   éphémères) — le K/D et les points, eux, sont persistants.
 - La boutique en argent réel nécessite d'héberger soi-même le micro-service Node (`website-node/`) et
   une base MySQL ; ce n'est pas un service clé en main.
-
-## 📋 Changelog
-
-### v1.0.32 (29/07/2026)
-- Mise à jour des dépendances
-- Corrections de bugs et améliorations générales
-
-### v1.0.31 (29/07/2026)
-- Description améliorée sur la page du projet
-- Corrections mineures et optimisations du code
-
-### v1.0.30 (29/07/2026)
-- Améliorations du système d'armes et d'armures
-- Refonte du système de flèches
-- Amélioration du selector d'équipement
-- Optimisation de la base de données
-
-### v1.0.29
-- Correction d'erreurs de compilation
-- Mise à jour pour Paper 1.21
-
-### Versions précédentes
-Voir la [page des releases](https://github.com/herocraftlol/L.a-Roue-Quotidienne/releases) pour l'historique complet.
