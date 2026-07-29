@@ -1,8 +1,15 @@
-# LoyaltyMobs
+# 🎰 LoyaltyMobs - La Roue Quotidienne
 
-Plugin Paper 1.21 de fidélisation par connexions journalières, avec collection permanente de
-mobs/blocs/équipements à la "roue" façon cartes à collectionner, et une arène PvP configurable
-avec ses propres règles. Boutique en argent réel optionnelle pour acheter des tickets de roue.
+**LoyaltyMobs** est un plugin Paper 1.21 de fidélisation pour serveurs Minecraft, offrant un système de connexion quotidienne avec une mécanique de "roue" façon cartes à collectionner, une arène PvP unique, et une boutique optionnelle.
+
+### ✨ Qu'est-ce que c'est ?
+
+Imaginez un système de récompenses quotidiennes où chaque connexion vous fait tourner une roue magique pour collecter :
+- **Des mobs uniques** qui deviennent vos alliés permanents
+- **Des blocs de construction** pour personnaliser votre espace en arène
+- **Des équipements** allant du cuir à la netherite
+
+Le tout avec une arène PvP dédiée où vos mobs invoqués se battent à vos côtés !
 
 ## Fonctionnalités
 
