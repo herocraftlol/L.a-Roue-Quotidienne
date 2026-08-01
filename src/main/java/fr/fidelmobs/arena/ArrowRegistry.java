@@ -200,9 +200,6 @@ public final class ArrowRegistry {
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(rarete.getCouleur() + modele.nom());
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-        if (effet) {
-            meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
-        }
         meta.getPersistentDataContainer().set(Cles.FLECHE_RARETE, PersistentDataType.INTEGER, modele.tier());
         meta.getPersistentDataContainer().set(Cles.FLECHE_MARQUEUR, PersistentDataType.BYTE, (byte) 1);
         meta.getPersistentDataContainer().set(Cles.FLECHE_MODELE_ID, PersistentDataType.INTEGER, modele.id());

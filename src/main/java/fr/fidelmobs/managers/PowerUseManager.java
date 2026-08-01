@@ -48,6 +48,15 @@ public class PowerUseManager {
     // conditionné au fait d'avoir concrètement ce pouvoir sélectionné en main.
     private final Set<UUID> enAttenteAffichage = new HashSet<>();
     private final Set<UUID> enAttenteMessagePret = new HashSet<>();
+    // Horodatage de la dernière utilisation réussie d'un pouvoir par joueur : sert à
+    // attribuer un kill à un pouvoir plutôt qu'à un coup direct (voir ArenaProtectionListener).
+    private final java.util.Map<UUID, Long> dernierUsagePouvoirMs = new java.util.HashMap<>();
+
+    /** Vrai si ce joueur a utilisé un pouvoir avec succès il y a moins de {@code fenetreMs}. */
+    public boolean aUtiliseUnPouvoirRecemment(UUID uuid, long fenetreMs) {
+        Long t = dernierUsagePouvoirMs.get(uuid);
+        return t != null && System.currentTimeMillis() - t <= fenetreMs;
+    }
 
     public PowerUseManager(LoyaltyMobsPlugin plugin) {
         this.plugin = plugin;
@@ -204,6 +213,7 @@ public class PowerUseManager {
         data.save(uuid);
         data.incrementerCompteur(uuid, "pouvoirs_utilises", 1);
         data.incrementerCompteurQuotidien(uuid, "pouvoirs_utilises", 1);
+        dernierUsagePouvoirMs.put(uuid, System.currentTimeMillis());
 
         int restantes = disponibles - 1;
         String suffixe = restantes > 0

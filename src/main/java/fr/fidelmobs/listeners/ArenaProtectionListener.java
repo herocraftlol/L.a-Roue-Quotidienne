@@ -9,6 +9,7 @@ import fr.fidelmobs.managers.BlockSelectorInventoryHolder;
 import fr.fidelmobs.managers.GearSelectorInventoryHolder;
 import fr.fidelmobs.managers.InvocationInventoryHolder;
 import fr.fidelmobs.managers.PowerSelectorInventoryHolder;
+import fr.fidelmobs.niveaux.NiveauManager;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -535,11 +536,16 @@ public class ArenaProtectionListener implements Listener {
             }
         }
 
+        // Assists : tout joueur (hors le tueur) ayant touché la victime dans les 10
+        // dernières secondes, quelle que soit la cause finale de la mort.
+        Map<UUID, Long> coupsRecents = dernierCoupSubi.remove(victime.getUniqueId());
+
         PlayerDataManager data = plugin.getPlayerDataManager();
         data.ajouterMort(victime.getUniqueId());
         data.incrementerCompteurQuotidien(victime.getUniqueId(), "morts", 1);
         data.definirCompteur(victime.getUniqueId(), "serie_kills_actuelle", 0);
         data.save(victime.getUniqueId());
+
         if (tueurUuid != null) {
             data.ajouterKill(tueurUuid);
             data.incrementerCompteurQuotidien(tueurUuid, "kills", 1);
@@ -555,12 +561,50 @@ public class ArenaProtectionListener implements Listener {
                         : " §8(kill sur " + victime.getName() + ")";
                 tueurPourMessage.sendMessage("§7+" + points + " points de fidélité" + contexte);
             }
+
+            // ---- Points de niveau (façon HikaBrain) : le type de kill détermine le barème ----
+            if (tueurPourMessage != null) {
+                boolean viaPouvoir = !viaMobAllie && plugin.getPowerUseManager().aUtiliseUnPouvoirRecemment(tueurUuid, 3000L);
+                int pointsNiveau;
+                if (viaMobAllie) {
+                    pointsNiveau = NiveauManager.POINTS_KILL_MOB;
+                } else if (viaPouvoir) {
+                    pointsNiveau = NiveauManager.POINTS_KILL_POUVOIR;
+                } else {
+                    pointsNiveau = NiveauManager.POINTS_KILL_DIRECT;
+                }
+                if (nouvelleSerie >= 2) {
+                    pointsNiveau += Math.min(10, nouvelleSerie - 1) * NiveauManager.POINTS_PAR_PALIER_SERIE;
+                }
+                plugin.getNiveauManager().ajouterPoints(tueurPourMessage, pointsNiveau);
+            }
+
+            if (coupsRecents != null) {
+                long maintenant = System.currentTimeMillis();
+                for (Map.Entry<UUID, Long> entree : coupsRecents.entrySet()) {
+                    if (entree.getKey().equals(tueurUuid)) continue;
+                    if (maintenant - entree.getValue() > 10_000L) continue;
+                    Player assistant = plugin.getServer().getPlayer(entree.getKey());
+                    if (assistant != null) {
+                        plugin.getNiveauManager().ajouterPoints(assistant, NiveauManager.POINTS_ASSIST);
+                        data.save(assistant.getUniqueId());
+                    }
+                }
+            }
+            data.save(tueurUuid); // flush le gain de points de niveau du tueur (pas sauvegardé à chaque coup)
         }
 
         plugin.getScoreboardManager().enregistrerElimination(tueurPourMessage, victime);
         // Kills/morts/K-D viennent de changer : on rafraîchit l'hologramme de classement
         // s'il est actif, pour qu'il reste à jour sans intervention manuelle.
         plugin.getHologramManager().actualiser();
+
+        // Rappel discret : si la victime a des récompenses de défis en attente, on le lui
+        // signale à ce moment précis (mort = pause naturelle où le joueur regarde le chat).
+        int enAttente = plugin.getDefiManager().compterRecompensesEnAttente(victime.getUniqueId());
+        if (enAttente > 0) {
+            victime.sendMessage("§7✦ Tu as §e" + enAttente + " récompense(s) de défi §7en attente. Tape §f/defi §7pour les récupérer !");
+        }
 
         // Le kit, les charges de blocs et l'item d'invocation sont prêtés pour la durée du
         // combat en arène : ils ne doivent jamais finir en loot au sol suite à une mort
@@ -572,6 +616,32 @@ public class ArenaProtectionListener implements Listener {
                 || plugin.getGearSelectorManager().estItemSelecteur(item)
                 || plugin.getPowerSelectorManager().estItemSelecteur(item)
                 || plugin.getPowerUseManager().estItemPouvoirActif(item));
+    }
+
+    // Dernier coup subi par chaque victime, par attaquant : victime -> (attaquant -> horodatage).
+    // Sert à la fois à créditer un coup de points de niveau, et à déterminer les assists au
+    // moment de la mort (tout attaquant récent qui n'est pas le tueur final).
+    private final Map<UUID, Map<UUID, Long>> dernierCoupSubi = new HashMap<>();
+
+    /**
+     * Suit chaque coup porté entre joueurs en arène : petits points de niveau pour le coup
+     * lui-même, et mémorisation pour le calcul des assists à la mort de la victime.
+     * MONITOR + ignoreCancelled : n'agit qu'APRÈS coup, sur des dégâts réellement appliqués,
+     * sans jamais interférer avec le déroulement du combat.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onCoupJoueur(EntityDamageByEntityEvent event) {
+        if (!(event.getEntity() instanceof Player victime) || !estDansArene(victime)) return;
+
+        Entity source = event.getDamager();
+        if (source instanceof Projectile projectile && projectile.getShooter() instanceof Entity tireur) {
+            source = tireur;
+        }
+        if (!(source instanceof Player attaquant) || attaquant.equals(victime) || !estDansArene(attaquant)) return;
+
+        plugin.getNiveauManager().ajouterPoints(attaquant, NiveauManager.POINTS_PAR_COUP);
+        dernierCoupSubi.computeIfAbsent(victime.getUniqueId(), k -> new HashMap<>())
+                .put(attaquant.getUniqueId(), System.currentTimeMillis());
     }
 
     @EventHandler

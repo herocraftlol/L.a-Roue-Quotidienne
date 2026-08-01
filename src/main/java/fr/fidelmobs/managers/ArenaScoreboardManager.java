@@ -81,8 +81,10 @@ public class ArenaScoreboardManager {
         int killstreak = killstreaks.getOrDefault(player.getUniqueId(), 0);
         double kd = plugin.getPlayerDataManager().getRatioKD(player.getUniqueId());
         int points = plugin.getPlayerDataManager().getPoints(player.getUniqueId());
+        int niveau = plugin.getNiveauManager().getNiveau(player.getUniqueId());
 
         int ligne = 15;
+        obj.getScore("§bNiveau : §b§l" + niveau).setScore(ligne--);
         obj.getScore("§fPoints : §d" + points).setScore(ligne--);
         obj.getScore(String.format(java.util.Locale.ROOT, "§fK/D : §e%.2f", kd)).setScore(ligne--);
         obj.getScore("§fSérie de kills: §e" + killstreak).setScore(ligne--);
@@ -106,6 +108,11 @@ public class ArenaScoreboardManager {
                 rang++;
             }
         }
+
+        // Astuce courte et discrète pour les nouveaux venus : comment dépenser tickets et
+        // points de fidélité. Volontairement minimaliste pour ne pas encombrer le sidebar.
+        obj.getScore("§8 ").setScore(ligne--);
+        obj.getScore("§7/roue §8= tickets, §7/points acheter").setScore(ligne--);
 
         player.setScoreboard(board);
     }

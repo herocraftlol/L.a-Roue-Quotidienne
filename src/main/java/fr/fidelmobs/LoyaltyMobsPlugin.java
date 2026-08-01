@@ -17,6 +17,7 @@ import fr.fidelmobs.data.PlayerDataManager;
 import fr.fidelmobs.database.DatabaseManager;
 import fr.fidelmobs.database.TicketSyncTask;
 import fr.fidelmobs.defis.DefiManager;
+import fr.fidelmobs.niveaux.NiveauManager;
 import fr.fidelmobs.listeners.AllyListener;
 import fr.fidelmobs.listeners.ArenaProtectionListener;
 import fr.fidelmobs.listeners.LoginListener;
@@ -49,6 +50,7 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
     private PowerSelectorManager powerSelectorManager;
     private PowerUseManager powerUseManager;
     private DefiManager defiManager;
+    private NiveauManager niveauManager;
     private DatabaseManager databaseManager;
 
     @Override
@@ -70,6 +72,7 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
         this.powerSelectorManager = new PowerSelectorManager(this);
         this.powerUseManager = new PowerUseManager(this);
         this.defiManager = new DefiManager(this);
+        this.niveauManager = new NiveauManager(this);
 
         getServer().getPluginManager().registerEvents(new LoginListener(this), this);
         getServer().getPluginManager().registerEvents(allyListener, this);
@@ -192,5 +195,9 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
 
     public DefiManager getDefiManager() {
         return defiManager;
+    }
+
+    public NiveauManager getNiveauManager() {
+        return niveauManager;
     }
 }

@@ -1,6 +1,10 @@
 package fr.fidelmobs.listeners;
 
+import fr.fidelmobs.Cles;
 import fr.fidelmobs.LoyaltyMobsPlugin;
+import fr.fidelmobs.data.PlayerDataManager;
+import fr.fidelmobs.mobs.MobRarity;
+import fr.fidelmobs.mobs.MobRegistry;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
@@ -373,22 +377,84 @@ public class AllyListener implements Listener {
         return meilleure;
     }
 
+    // Un mob invoqué, aussi puissant soit-il, ne doit jamais rester en jeu indéfiniment :
+    // 5 minutes de survie maximum, quelle que soit la configuration ("duree-vie-allie-secondes"
+    // peut réduire ce délai, jamais l'augmenter au-delà).
+    private static final int DUREE_VIE_MAX_SECONDES = 300;
+
     public void enregistrerAllie(Mob mob, Player proprietaire) {
         mob.getPersistentDataContainer().set(CLE_PROPRIETAIRE, PersistentDataType.STRING, proprietaire.getUniqueId().toString());
         alliesParProprietaire.computeIfAbsent(proprietaire.getUniqueId(), k -> new HashSet<>()).add(mob.getUniqueId());
 
-        int dureeVie = plugin.getConfig().getInt("duree-vie-allie-secondes", 0);
-        if (dureeVie > 0) {
-            new BukkitRunnable() {
-                @Override
-                public void run() {
-                    if (mob.isValid() && !mob.isDead()) {
-                        retirerAllie(proprietaire.getUniqueId(), mob.getUniqueId());
-                        mob.remove();
-                    }
-                }
-            }.runTaskLater(plugin, dureeVie * 20L);
+        // Ne pose l'horodatage de spawn que s'il n'y en a pas déjà un : évite qu'un
+        // changement de propriétaire (pouvoir "Ralliement") ne rallonge artificiellement
+        // la durée de vie restante du mob concerné.
+        if (!mob.getPersistentDataContainer().has(Cles.INVOCATION_SPAWN_MS, PersistentDataType.LONG)) {
+            mob.getPersistentDataContainer().set(Cles.INVOCATION_SPAWN_MS, PersistentDataType.LONG, System.currentTimeMillis());
         }
+
+        int dureeVieConfig = plugin.getConfig().getInt("duree-vie-allie-secondes", DUREE_VIE_MAX_SECONDES);
+        int dureeVie = dureeVieConfig > 0 ? Math.min(dureeVieConfig, DUREE_VIE_MAX_SECONDES) : DUREE_VIE_MAX_SECONDES;
+
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (mob.isValid() && !mob.isDead()) {
+                    finDeVieAllie(mob, proprietaire.getUniqueId());
+                    mob.remove();
+                }
+            }
+        }.runTaskLater(plugin, dureeVie * 20L);
+    }
+
+    /**
+     * Nombre d'alliés actuellement EN VIE de ce type précis pour ce propriétaire (mobs déjà
+     * invoqués et toujours sur le terrain) : utilisé pour empêcher d'invoquer plus de copies
+     * simultanées d'un même mob que ce que le joueur en possède réellement, puisque le temps
+     * de recharge n'est désormais appliqué qu'à la mort/expiration du mob (voir
+     * {@link #finDeVieAllie}), pas au moment de l'invocation.
+     */
+    public int compterAlliesVivantsDuType(UUID proprietaire, org.bukkit.entity.EntityType type) {
+        Set<UUID> ids = alliesParProprietaire.get(proprietaire);
+        if (ids == null) return 0;
+        int compte = 0;
+        for (UUID id : ids) {
+            Entity e = plugin.getServer().getEntity(id);
+            if (e != null && e.getType() == type && e.isValid() && !e.isDead()) {
+                compte++;
+            }
+        }
+        return compte;
+    }
+
+    /**
+     * Appelée une seule fois quand un allié invoqué meurt ou arrive en fin de vie : calcule
+     * et applique le temps de recharge avant de pouvoir réinvoquer ce type de mob, en
+     * combinant sa PUISSANCE (rareté) et le TEMPS QU'IL A FALLU POUR LE TUER (plus il a
+     * résisté longtemps, plus la recharge est longue). C'est aussi précisément à ce moment
+     * que l'unité redevient comptée comme "en recharge" plutôt que "en vie" (voir
+     * {@link #compterAlliesVivantsDuType}).
+     */
+    private void finDeVieAllie(Mob mob, UUID proprietaire) {
+        Long spawnMs = mob.getPersistentDataContainer().get(Cles.INVOCATION_SPAWN_MS, PersistentDataType.LONG);
+        long survieMs = spawnMs != null ? Math.max(0, System.currentTimeMillis() - spawnMs) : 0L;
+
+        MobRarity rarete = MobRegistry.getRarete(mob.getType());
+        long baseSecondes = switch (rarete) {
+            case COMMUN -> 45L;
+            case PEU_COMMUN -> 120L;
+            case RARE -> 240L;
+            case EPIQUE -> 420L;
+            case LEGENDAIRE -> 600L;
+        };
+        // Jusqu'à 50% du temps de survie (plafonné à la durée de vie max) s'ajoute en bonus :
+        // un mob qui a résisté longtemps était clairement précieux, il faut attendre plus
+        // longtemps avant de pouvoir le rappeler.
+        long bonusSurvieMs = (long) (Math.min(survieMs, DUREE_VIE_MAX_SECONDES * 1000L) * 0.5);
+        long cooldownMs = baseSecondes * 1000L + bonusSurvieMs;
+
+        plugin.getPlayerDataManager().utiliserUniteMob(proprietaire, mob.getType(), cooldownMs);
+        retirerAllie(proprietaire, mob.getUniqueId());
     }
 
     /**
@@ -488,9 +554,11 @@ public class AllyListener implements Listener {
 
     @EventHandler
     public void onMort(EntityDeathEvent event) {
-        UUID proprietaire = getProprietaire(event.getEntity());
-        if (proprietaire != null) {
-            retirerAllie(proprietaire, event.getEntity().getUniqueId());
+        if (event.getEntity() instanceof Mob mob) {
+            UUID proprietaire = getProprietaire(mob);
+            if (proprietaire != null) {
+                finDeVieAllie(mob, proprietaire);
+            }
         }
         UUID idMort = event.getEntity().getUniqueId();
         angleOrbiteDragon.remove(idMort);

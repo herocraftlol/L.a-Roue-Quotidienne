@@ -123,18 +123,20 @@ public class InvocationManager {
             return;
         }
 
-        int disponibles = data.getUnitesDisponibles(uuid, type);
+        int disponibles = data.getUnitesDisponibles(uuid, type) - plugin.getAllyListener().compterAlliesVivantsDuType(uuid, type);
         if (disponibles <= 0) {
             long prochaine = data.getProchaineDisponibilite(uuid, type);
-            String attente = prochaine > 0 ? formatDuree(prochaine - System.currentTimeMillis()) : "bientôt";
-            player.sendMessage("§cToutes tes unités de " + nomLisible(type) + " sont en recharge. "
+            String attente = prochaine > 0 ? formatDuree(prochaine - System.currentTimeMillis()) : "qu'il revienne du combat";
+            player.sendMessage("§cToutes tes unités de " + nomLisible(type) + " sont déjà au combat ou en recharge. "
                     + "§7Prochaine disponible dans §e" + attente + "§7.");
             return;
         }
 
-        long cooldownMs = Math.max(1, plugin.getConfig().getInt("arene.invocation-cooldown-secondes", 3600)) * 1000L;
-        data.utiliserUniteMob(uuid, type, cooldownMs);
-        data.save(uuid);
+        // Le temps de recharge n'est plus fixé arbitrairement à l'invocation : il est
+        // désormais calculé à la mort (ou expiration après 5 min) du mob, proportionnellement
+        // à sa puissance ET au temps qu'il a fallu pour le vaincre (voir
+        // AllyListener#finDeVieAllie). Tant qu'il est vivant, il compte simplement comme
+        // "en combat" via compterAlliesVivantsDuType ci-dessus.
         prochaineInvocationAutorisee.put(uuid, maintenant + COOLDOWN_INVOCATION_GLOBAL_MS);
 
         Location spawnLoc = SpawnUtils.trouverPositionSpawnValide(player);
@@ -157,15 +159,18 @@ public class InvocationManager {
         if (rarete == MobRarity.LEGENDAIRE) {
             data.incrementerCompteur(uuid, "invocations_legendaires", 1);
         }
+        data.save(uuid);
 
         int restantes = disponibles - 1;
         player.sendMessage("§aTu as invoqué " + rarete.getCouleur() + nomLisible(type) + " §aà tes côtés ! §7("
-                + restantes + " autre(s) disponible(s) tout de suite, celle-ci en recharge 1h.)");
+                + restantes + " autre(s) disponible(s) tout de suite. Le temps de recharge de celle-ci ne "
+                + "démarrera qu'à sa mort, et dépendra de sa puissance et du temps qu'il faudra pour la vaincre.)");
     }
 
     private ItemStack creerIcone(Player player, EntityType type, int nombre, MobRarity rarete) {
         PlayerDataManager data = plugin.getPlayerDataManager();
-        int disponibles = data.getUnitesDisponibles(player.getUniqueId(), type);
+        int disponibles = data.getUnitesDisponibles(player.getUniqueId(), type)
+                - plugin.getAllyListener().compterAlliesVivantsDuType(player.getUniqueId(), type);
 
         ItemStack icone = new ItemStack(spawnEggPour(type));
         ItemMeta meta = icone.getItemMeta();
@@ -179,8 +184,8 @@ public class InvocationManager {
             lore.add("§eClique pour invoquer !");
         } else {
             long prochaine = data.getProchaineDisponibilite(player.getUniqueId(), type);
-            String attente = prochaine > 0 ? formatDuree(prochaine - System.currentTimeMillis()) : "bientôt";
-            lore.add("§cToutes en recharge");
+            String attente = prochaine > 0 ? formatDuree(prochaine - System.currentTimeMillis()) : "qu'il revienne du combat";
+            lore.add("§cToutes déjà au combat ou en recharge");
             lore.add("§7Prochaine dans " + attente);
         }
         meta.setLore(lore);

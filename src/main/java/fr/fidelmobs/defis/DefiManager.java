@@ -32,8 +32,9 @@ public class DefiManager {
     private static final int LIGNES = 6;
     private static final int SLOTS_PAR_PAGE = LIGNES * 9 - 9; // dernière ligne réservée à la navigation
     private static final int SLOT_PAGE_PRECEDENTE = 45;
-    private static final int SLOT_BASCULE_ONGLET = 49;
+    private static final int SLOT_RECUPERER_TOUT = 47;
     private static final int SLOT_RESUME = 48;
+    private static final int SLOT_BASCULE_ONGLET = 49;
     private static final int SLOT_PAGE_SUIVANTE = 53;
 
     private final LoyaltyMobsPlugin plugin;
@@ -59,7 +60,8 @@ public class DefiManager {
 
     /**
      * Marque comme "accompli" (mais pas encore récupéré) tout défi (global ou quotidien du
-     * jour) fraîchement complété. Silencieux : aucun message, aucun son, aucune récompense.
+     * jour) fraîchement complété. Pas de titre ni de son — juste une ligne de chat discrète
+     * et positive incitant à faire /defi, pour ne pas casser l'ambiance en plein combat.
      */
     public void marquerProgression(Player player) {
         PlayerDataManager data = plugin.getPlayerDataManager();
@@ -69,6 +71,7 @@ public class DefiManager {
             if (data.estDefiComplete(uuid, defi.id())) continue;
             if (defi.estComplete(data, uuid)) {
                 data.marquerDefiComplete(uuid, defi.id());
+                signalerDiscretement(player, defi);
             }
         }
 
@@ -76,8 +79,26 @@ public class DefiManager {
             if (data.estDefiQuotidienComplete(uuid, defi.id())) continue;
             if (defi.estComplete(data, uuid)) {
                 data.marquerDefiQuotidienComplete(uuid, defi.id());
+                signalerDiscretement(player, defi);
             }
         }
+    }
+
+    private void signalerDiscretement(Player player, Defi defi) {
+        player.sendMessage("§7✦ Défi accompli : §f" + defi.nom() + " §7— tape §e/defi §7pour récupérer ta récompense !");
+    }
+
+    /** Nombre total de récompenses (globales + quotidiennes) accomplies mais pas encore réclamées. */
+    public int compterRecompensesEnAttente(UUID uuid) {
+        PlayerDataManager data = plugin.getPlayerDataManager();
+        int total = 0;
+        for (Defi defi : DefiRegistry.GLOBAL) {
+            if (data.estDefiComplete(uuid, defi.id()) && !data.estDefiRecupere(uuid, defi.id())) total++;
+        }
+        for (Defi defi : DefiRegistry.defisQuotidiensDuJour()) {
+            if (data.estDefiQuotidienComplete(uuid, defi.id()) && !data.estDefiQuotidienRecupere(uuid, defi.id())) total++;
+        }
+        return total;
     }
 
     /**
@@ -120,6 +141,54 @@ public class DefiManager {
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 1.4f);
 
         // Réaffiche le menu à la même page pour montrer l'icône fraîchement marquée récupérée.
+        if (player.getOpenInventory().getTopInventory().getHolder() instanceof DefiInventoryHolder holder) {
+            ouvrirMenu(player, holder.isQuotidien(), holder.getPage());
+        }
+    }
+
+    /**
+     * Récupère en une fois TOUTES les récompenses disponibles (défis globaux ET quotidiens
+     * du jour confondus, peu importe l'onglet actuellement affiché), plutôt que de devoir
+     * cliquer sur chaque défi un par un.
+     */
+    public void recupererTout(Player player) {
+        PlayerDataManager data = plugin.getPlayerDataManager();
+        UUID uuid = player.getUniqueId();
+        int totalPoints = 0;
+        int totalTickets = 0;
+        int nombre = 0;
+
+        for (Defi defi : DefiRegistry.GLOBAL) {
+            if (data.estDefiComplete(uuid, defi.id()) && !data.estDefiRecupere(uuid, defi.id())) {
+                data.marquerDefiRecupere(uuid, defi.id());
+                data.ajouterPoints(uuid, defi.recompensePoints());
+                if (defi.recompenseTickets() > 0) data.addTickets(uuid, defi.recompenseTickets());
+                totalPoints += defi.recompensePoints();
+                totalTickets += defi.recompenseTickets();
+                nombre++;
+            }
+        }
+        for (Defi defi : DefiRegistry.defisQuotidiensDuJour()) {
+            if (data.estDefiQuotidienComplete(uuid, defi.id()) && !data.estDefiQuotidienRecupere(uuid, defi.id())) {
+                data.marquerDefiQuotidienRecupere(uuid, defi.id());
+                data.ajouterPoints(uuid, defi.recompensePoints());
+                if (defi.recompenseTickets() > 0) data.addTickets(uuid, defi.recompenseTickets());
+                totalPoints += defi.recompensePoints();
+                totalTickets += defi.recompenseTickets();
+                nombre++;
+            }
+        }
+        data.save(uuid);
+
+        if (nombre == 0) {
+            player.sendMessage("§7Aucune récompense à récupérer pour le moment.");
+            return;
+        }
+
+        String suffixe = totalTickets > 0 ? " §7et §e+" + totalTickets + " ticket(s)" : "";
+        player.sendMessage("§a✦ " + nombre + " récompense(s) récupérée(s) — §a+" + totalPoints + " points" + suffixe);
+        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 1.4f);
+
         if (player.getOpenInventory().getTopInventory().getHolder() instanceof DefiInventoryHolder holder) {
             ouvrirMenu(player, holder.isQuotidien(), holder.getPage());
         }
@@ -176,6 +245,28 @@ public class DefiManager {
         if (pageBornee < nbPages - 1) {
             inv.setItem(SLOT_PAGE_SUIVANTE, nommer(Material.ARROW, "§ePage suivante »", List.of()));
         }
+        // Nombre de récompenses en attente sur l'AUTRE onglet aussi, pour que le bouton
+        // "tout récupérer" (qui agit sur les deux onglets à la fois) affiche un total complet.
+        List<Defi> autreListe = quotidien ? DefiRegistry.GLOBAL : DefiRegistry.defisQuotidiensDuJour();
+        int nbARecupererAutreOnglet = 0;
+        for (Defi defi : autreListe) {
+            boolean completeAutre = quotidien
+                    ? data.estDefiComplete(player.getUniqueId(), defi.id())
+                    : data.estDefiQuotidienComplete(player.getUniqueId(), defi.id());
+            boolean recupereAutre = quotidien
+                    ? data.estDefiRecupere(player.getUniqueId(), defi.id())
+                    : data.estDefiQuotidienRecupere(player.getUniqueId(), defi.id());
+            if (completeAutre && !recupereAutre) nbARecupererAutreOnglet++;
+        }
+        int totalARecuperer = nbARecuperer + nbARecupererAutreOnglet;
+
+        inv.setItem(SLOT_RECUPERER_TOUT, nommer(
+                totalARecuperer > 0 ? Material.CHEST : Material.BARRIER,
+                totalARecuperer > 0 ? "§e★ Tout récupérer (" + totalARecuperer + ")" : "§7Rien à récupérer",
+                totalARecuperer > 0
+                        ? List.of("§7Récupère en un clic toutes les", "§7récompenses disponibles,", "§7globales ET quotidiennes.")
+                        : List.of("§7Aucune récompense en attente", "§7pour le moment.")));
+
         inv.setItem(SLOT_BASCULE_ONGLET, nommer(
                 quotidien ? Material.CLOCK : Material.NETHER_STAR,
                 quotidien ? "§bClique : voir les défis §lGlobaux" : "§dClique : voir les défis §lQuotidiens",
@@ -287,6 +378,10 @@ public class DefiManager {
         }
         if (slotClique == SLOT_BASCULE_ONGLET) {
             ouvrirMenu(player, !holder.isQuotidien(), 0);
+            return;
+        }
+        if (slotClique == SLOT_RECUPERER_TOUT) {
+            recupererTout(player);
             return;
         }
 

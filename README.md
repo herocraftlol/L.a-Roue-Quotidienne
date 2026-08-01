@@ -1,6 +1,6 @@
 # LoyaltyMobs
 
-![Version](https://img.shields.io/badge/Version-1.0.36-blue)
+![Version](https://img.shields.io/badge/Version-1.0.37-blue)
 ![Paper](https://img.shields.io/badge/Paper-1.21-green)
 ![Java](https://img.shields.io/badge/Java-21-orange)
 
@@ -12,8 +12,10 @@ avec ses propres règles. Boutique en argent réel optionnelle pour acheter des 
 
 Téléchargez la dernière version ici : **[Releases](https://github.com/herocraftlol/L.a-Roue-Quotidienne/releases)**
 
-## 🆕 Dernières nouveautés (v1.0.36)
+## 🆕 Dernières nouveautés (v1.0.37)
 
+- **Système de niveaux** : Nouveau système de progression par niveaux avec expérience gagnée en arène PvP
+- **Défis quotidiens et globaux** : Nouveau système de défis avec récompenses variées
 - **Améliorations de stabilité** : Optimisations générales et corrections de bugs
 - **Améliorations de l'arène PvP** : Optimisation des systèmes de combat et de gestion des blocs
 - **Nouvelles flèches magiques** : Ajout de modèles de flèches avec effets supplémentaires
@@ -24,25 +26,16 @@ Téléchargez la dernière version ici : **[Releases](https://github.com/herocra
 
 ## 📜 Changelog
 
-### v1.0.36
-- Améliorations de stabilité
+### v1.0.37
+- Ajout du système de niveaux avec progression par XP
+- Nouveau système de défis (quotidiens et globaux) avec récompenses
+- Améliorations de stabilité et corrections de bugs
 - Amélioration du système d'arène et de combat
 - Nouvelles flèches magiques avec effets supplémentaires
 - Système de pouvoirs spéciaux optimisé
 - Corrections et optimisations générales
 
-### v1.0.35
-- Amélioration du système d'arène et de combat
-- Nouvelles flèches magiques avec effets supplémentaires
-- Système de pouvoirs spéciaux optimisé
-- Corrections et optimisations générales
-
-### v1.0.33
-- Mise à jour des dépendances
-- Améliorations de stabilité
-
-### v1.0.32
-- Corrections de bugs
+---
 
 ## Fonctionnalités
 
@@ -98,6 +91,12 @@ Téléchargez la dernière version ici : **[Releases](https://github.com/herocra
 - **`/classement [retirer]`** *(admin)* : invoque à sa position un hologramme (armor stands, sans
   dépendance externe) affichant le top 5 kills, top 5 morts et top 5 meilleurs K/D — s'actualise tout
   seul à chaque mort en arène.
+
+### Niveaux et Défis
+- **`/defi`** : ouvre le menu des défis avec les défis globaux et quotidiens
+- **`/defi quotidien`** : affiche les défis du jour avec leurs récompenses
+- Système de progression par niveaux avec XP gagnée en arène PvP
+- Récompenses spéciales pour les joueurs actifs
 
 ### Boutique en argent réel (optionnelle)
 Achat de tickets de roue avec de l'argent réel, sur le même principe qu'un webshop classique (Stripe +
