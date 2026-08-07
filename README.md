@@ -1,25 +1,23 @@
 # LoyaltyMobs
 
-![Version](https://img.shields.io/badge/Version-1.0.37-blue)
+![Version](https://img.shields.io/badge/Version-1.0.38-blue)
 ![Paper](https://img.shields.io/badge/Paper-1.21-green)
 ![Java](https://img.shields.io/badge/Java-21-orange)
 
-Plugin Paper 1.21 de fidélisation par connexions journalières, avec collection permanente de
-mobs/blocs/équipements à la "roue" façon cartes à collectionner, et une arène PvP configurable
-avec ses propres règles. Boutique en argent réel optionnelle pour acheter des tickets de roue.
+**LoyaltyMobs** est un plugin Minecraft Paper 1.21 qui transforme votre serveur en une véritable expérience de jeu collaborative. Fidélisez vos joueurs avec un système de connexion quotidienne, une roue de la fortune pour collectionner des mobs, des blocs et des équipements, le tout 结合 une arène PvP unique en son genre !
 
 ## 📥 Télécharger
 
 Téléchargez la dernière version ici : **[Releases](https://github.com/herocraftlol/L.a-Roue-Quotidienne/releases)**
 
-## 🆕 Dernières nouveautés (v1.0.37)
+## 🆕 Dernières nouveautés (v1.0.38)
 
-- **Système de niveaux** : Nouveau système de progression par niveaux avec expérience gagnée en arène PvP
-- **Défis quotidiens et globaux** : Nouveau système de défis avec récompenses variées
+- **Système de niveaux** : Progression par niveaux avec expérience gagnée en arène PvP
+- **Défis quotidiens et globaux** : De nouveaux défis avec récompenses variées
 - **Améliorations de stabilité** : Optimisations générales et corrections de bugs
 - **Améliorations de l'arène PvP** : Optimisation des systèmes de combat et de gestion des blocs
-- **Nouvelles flèches magiques** : Ajout de modèles de flèches avec effets supplémentaires
-- **Système de pouvoirs spéciaux** : Amélioration du système de pouvoirs avec de nouveaux effets et une meilleure gestion des cooldowns
+- **Nouvelles flèches magiques** : Modèles de flèches avec effets supplémentaires
+- **Système de pouvoirs spéciaux** : Nouveaux effets et meilleure gestion des cooldowns
 - **Optimisations générales** : Amélioration des performances
 
 ---
