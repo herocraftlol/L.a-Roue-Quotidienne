@@ -72,18 +72,18 @@ public class RoueCommand implements CommandExecutor {
         // ---- Phase 1 : tirage pur (sans effet de bord) de chaque catégorie ----
         // Équipement/flèches : on exclut ce que le joueur possède déjà pour ne jamais lui
         // donner deux fois exactement la même arme/armure ou la même flèche à effet.
-        Set<Material> materiauxPossedes = data.getEquipements(uuid).stream()
-                .map(ItemStack::getType).collect(Collectors.toSet());
+        Set<String> signaturesGearPossedees = data.getEquipements(uuid).stream()
+                .map(GearRegistry::getSignature).collect(Collectors.toSet());
         Set<Integer> flechesDejaPossedees = data.getFleches(uuid).stream()
                 .map(ArrowRegistry::getModeleId).collect(Collectors.toSet());
 
         EntityType mob = MobRegistry.tirerMobAleatoire();
         Material bloc = BlockRegistry.tirerBlocAleatoire(data.getBlocsDebloques(uuid));
         // equip/fleche peuvent être null : ça signifie que la collection est déjà complète
-        // (5 flèches, 25 combinaisons d'équipement possibles) à ce palier minimum. Dans ce
-        // cas on ne retombe JAMAIS sur un doublon réel : la rareté "nominale" sert juste à
-        // dimensionner le bonus de compensation (voir appliquerEquipement/appliquerFleche).
-        ItemStack equip = tirerEquipementSansDoublon(0, materiauxPossedes);
+        // à ce palier minimum. Dans ce cas on ne retombe JAMAIS sur un doublon réel : la
+        // rareté "nominale" sert juste à dimensionner le bonus de compensation (voir
+        // appliquerEquipement/appliquerFleche).
+        ItemStack equip = tirerEquipementSansDoublon(0, signaturesGearPossedees);
         ItemStack fleche = tirerFlecheSansDoublon(0, flechesDejaPossedees);
         PowerRegistry.PowerDefinition pouvoir = PowerRegistry.tirerPouvoirAleatoire();
 
@@ -107,7 +107,7 @@ public class RoueCommand implements CommandExecutor {
                     rBloc = BlockRegistry.getRarete(bloc);
                 }
                 case 2 -> {
-                    equip = tirerEquipementSansDoublon(MobRarity.RARE.ordinal(), materiauxPossedes);
+                    equip = tirerEquipementSansDoublon(MobRarity.RARE.ordinal(), signaturesGearPossedees);
                     rEquip = equip != null ? MobRarity.values()[GearRegistry.getRarete(equip)]
                             : GearRegistry.tirerRareteSeule(MobRarity.RARE.ordinal());
                 }
@@ -290,13 +290,14 @@ public class RoueCommand implements CommandExecutor {
     }
 
     /**
-     * Tire une pièce d'équipement/arme que le joueur ne possède pas encore (même matériau).
-     * Renvoie {@code null} si toutes les combinaisons possibles à ce tier minimum sont déjà
-     * possédées (collection complète) : dans ce cas on ne rend JAMAIS un doublon (voir
-     * {@link #appliquerBonusCollectionComplete}).
+     * Tire une pièce d'équipement/arme que le joueur ne possède pas encore (même matériau ET
+     * même niveau d'enchantement — une version enchantée d'un matériau déjà possédé "brut"
+     * reste une nouveauté valide). Renvoie {@code null} si toutes les combinaisons possibles
+     * à ce tier minimum sont déjà possédées (collection complète) : dans ce cas on ne rend
+     * JAMAIS un doublon (voir {@link #appliquerBonusCollectionComplete}).
      */
-    private ItemStack tirerEquipementSansDoublon(int minTierOrdinal, Set<Material> materiauxDejaPossedes) {
-        return GearRegistry.genererObjetAleatoire(minTierOrdinal, materiauxDejaPossedes);
+    private ItemStack tirerEquipementSansDoublon(int minTierOrdinal, Set<String> signaturesDejaPossedees) {
+        return GearRegistry.genererObjetAleatoire(minTierOrdinal, signaturesDejaPossedees);
     }
 
     /**

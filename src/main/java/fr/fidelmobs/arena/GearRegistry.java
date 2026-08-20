@@ -20,12 +20,13 @@ import java.util.Set;
 
 /**
  * Génère des pièces d'armure et des épées aléatoires pour la roue, classées par rareté
- * selon leur tier (cuir < or < fer < diamant < netherite), avec une chance d'être
+ * selon leur tier (cuir/bois < or < fer < diamant < netherite), avec une chance d'être
  * enchantées : soit une combinaison FAIBLE (un seul enchantement, niveau bas, +1 palier de
  * rareté), soit une combinaison FORTE (plusieurs enchantements à haut niveau, +2 paliers de
- * rareté) — de quoi avoir une vraie gradation d'objets plus ou moins puissants pour le
- * combat, au lieu d'un simple oui/non. Les pièces en cuir reçoivent en plus une teinte
- * visuelle liée à leur rareté.
+ * rareté). Un même matériau existe donc en jusqu'à 3 variantes collectionnables séparément
+ * (brute / enchantée faible / enchantée forte), en plus du set de base bois+cuir toujours
+ * disponible gratuitement (voir {@link #objetParDefaut}) — d'où une vraie panoplie
+ * d'équipements par emplacement plutôt qu'un seul objet figé par matériau.
  */
 public final class GearRegistry {
 
@@ -46,7 +47,7 @@ public final class GearRegistry {
     }
 
     /** Intensité de l'enchantement obtenu : aucune, une combinaison faible, ou une forte. */
-    private enum NiveauEnchant {
+    public enum NiveauEnchant {
         AUCUN, FAIBLE, FORT
     }
 
@@ -66,6 +67,9 @@ public final class GearRegistry {
     private static final Material[] EPEES = {
             Material.WOODEN_SWORD, Material.GOLDEN_SWORD, Material.IRON_SWORD, Material.DIAMOND_SWORD, Material.NETHERITE_SWORD
     };
+    // Dégâts de base (attaque à mains nues + arme, en cœurs) de chaque tier d'épée en vanilla,
+    // affiché à titre indicatif dans le menu (voir decrireEffets).
+    private static final double[] DEGATS_BASE_EPEE = {4.0, 4.0, 6.0, 7.0, 8.0};
 
     // Pool élargie : plus d'enchantements possibles = plus de combinaisons différentes à
     // obtenir, en plus de la gradation faible/forte.
@@ -94,9 +98,6 @@ public final class GearRegistry {
     private GearRegistry() {
     }
 
-    /**
-     * Tire un tier (0=COMMUN ... 4=LEGENDAIRE) pondéré comme les autres raretés du plugin.
-     */
     private static int tirerTier() {
         int poidsTotal = 0;
         for (MobRarity r : MobRarity.values()) poidsTotal += r.getPoids();
@@ -110,11 +111,6 @@ public final class GearRegistry {
         return 0;
     }
 
-    /**
-     * Variante de {@link #tirerTier()} qui ne renvoie jamais un tier en dessous de
-     * {@code minTierOrdinal}. Utilisé pour garantir au moins une récompense rare
-     * parmi les catégories à chaque lancer de roue.
-     */
     private static int tirerTier(int minTierOrdinal) {
         MobRarity[] valeurs = MobRarity.values();
         int min = Math.max(0, Math.min(minTierOrdinal, valeurs.length - 1));
@@ -128,6 +124,13 @@ public final class GearRegistry {
             if (tirage < cumul) return i;
         }
         return min;
+    }
+
+    private static NiveauEnchant tirerNiveauEnchant() {
+        double roll = RANDOM.nextDouble();
+        if (roll < CHANCE_FORT) return NiveauEnchant.FORT;
+        if (roll < CHANCE_FORT + CHANCE_FAIBLE) return NiveauEnchant.FAIBLE;
+        return NiveauEnchant.AUCUN;
     }
 
     public static ItemStack genererObjetAleatoire() {
@@ -148,16 +151,18 @@ public final class GearRegistry {
         TypeEquipement[] types = TypeEquipement.values();
         TypeEquipement type = types[RANDOM.nextInt(types.length)];
         int tier = minTierOrdinal > 0 ? tirerTier(minTierOrdinal) : tirerTier();
-        return construireItem(type, tier);
+        return construireItem(type, tier, tirerNiveauEnchant());
     }
 
     /**
-     * Variante anti-doublons : ne tire jamais un type+tier de matériau déjà présent dans
-     * {@code materiauxExclus} (la collection déjà possédée par le joueur). Essaie toutes les
-     * combinaisons type+tier disponibles avant d'abandonner ; retourne {@code null} si TOUTES
-     * les pièces possibles (au tier minimum demandé) sont déjà possédées (collection complète).
+     * Variante anti-doublons : ne tire jamais une combinaison (type, matériau, niveau
+     * d'enchantement) déjà présente dans {@code signaturesExclues} — voir {@link #getSignature}.
+     * Un même matériau peut donc être retiré jusqu'à 3 fois (brut, enchanté faible, enchanté
+     * fort), chaque variante comptant comme un objet distinct dans la collection. Essaie
+     * toutes les combinaisons disponibles avant d'abandonner ; retourne {@code null} si TOUT
+     * (au tier minimum demandé) est déjà possédé (collection complète).
      */
-    public static ItemStack genererObjetAleatoire(int minTierOrdinal, Set<Material> materiauxExclus) {
+    public static ItemStack genererObjetAleatoire(int minTierOrdinal, Set<String> signaturesExclues) {
         List<TypeEquipement> typesMelanges = new ArrayList<>(List.of(TypeEquipement.values()));
         Collections.shuffle(typesMelanges, RANDOM);
         int min = Math.max(0, minTierOrdinal);
@@ -166,7 +171,7 @@ public final class GearRegistry {
         for (TypeEquipement type : typesMelanges) {
             List<Integer> tiersDisponibles = new ArrayList<>();
             for (int t = min; t < valeurs.length; t++) {
-                if (!materiauxExclus.contains(materialPour(type, t))) {
+                if (!lesTroisNiveauxSontPossedes(type, t, signaturesExclues)) {
                     tiersDisponibles.add(t);
                 }
             }
@@ -184,10 +189,35 @@ public final class GearRegistry {
                     break;
                 }
             }
-            return construireItem(type, tierChoisi);
+
+            NiveauEnchant niveau = tirerNiveauNonPossede(type, tierChoisi, signaturesExclues);
+            return construireItem(type, tierChoisi, niveau);
         }
 
         return null; // toutes les combinaisons possibles (à ce tier minimum) sont déjà possédées
+    }
+
+    private static boolean lesTroisNiveauxSontPossedes(TypeEquipement type, int tier, Set<String> signaturesExclues) {
+        for (NiveauEnchant n : NiveauEnchant.values()) {
+            if (!signaturesExclues.contains(signature(type, tier, n))) return false;
+        }
+        return true;
+    }
+
+    /** Respecte les probabilités normales, en réessayant si le résultat est déjà possédé. */
+    private static NiveauEnchant tirerNiveauNonPossede(TypeEquipement type, int tier, Set<String> signaturesExclues) {
+        for (int essai = 0; essai < 6; essai++) {
+            NiveauEnchant candidat = tirerNiveauEnchant();
+            if (!signaturesExclues.contains(signature(type, tier, candidat))) return candidat;
+        }
+        for (NiveauEnchant n : NiveauEnchant.values()) {
+            if (!signaturesExclues.contains(signature(type, tier, n))) return n;
+        }
+        return NiveauEnchant.AUCUN; // ne devrait jamais arriver (appelant garantit qu'il en reste un)
+    }
+
+    private static String signature(TypeEquipement type, int tier, NiveauEnchant niveau) {
+        return type.name() + ":" + tier + ":" + niveau.name();
     }
 
     private static Material materialPour(TypeEquipement type, int tier) {
@@ -200,18 +230,7 @@ public final class GearRegistry {
         };
     }
 
-    private static ItemStack construireItem(TypeEquipement type, int tier) {
-        double roll = RANDOM.nextDouble();
-        NiveauEnchant niveau = roll < CHANCE_FORT ? NiveauEnchant.FORT
-                : roll < CHANCE_FORT + CHANCE_FAIBLE ? NiveauEnchant.FAIBLE
-                : NiveauEnchant.AUCUN;
-
-        // Le stuff de base (cuir/bois, tier COMMUN) ne doit jamais s'obtenir "tel quel" à la
-        // roue : s'il sort sans enchantement, on force au moins une combinaison faible.
-        if (tier == 0 && niveau == NiveauEnchant.AUCUN) {
-            niveau = NiveauEnchant.FAIBLE;
-        }
-
+    private static ItemStack construireItem(TypeEquipement type, int tier, NiveauEnchant niveau) {
         Material material = materialPour(type, tier);
 
         // Une combinaison faible monte d'un palier de rareté, une forte de deux (plafonné
@@ -240,6 +259,7 @@ public final class GearRegistry {
 
         meta.getPersistentDataContainer().set(Cles.RARETE, PersistentDataType.INTEGER, tierAffiche);
         meta.getPersistentDataContainer().set(Cles.ENCHANTE, PersistentDataType.INTEGER, niveau != NiveauEnchant.AUCUN ? 1 : 0);
+        meta.getPersistentDataContainer().set(Cles.GEAR_NIVEAU_ENCHANT, PersistentDataType.INTEGER, niveau.ordinal());
 
         // Les enchantements sont ajoutés directement sur CE MÊME objet meta, avant l'unique
         // appel à item.setItemMeta() ci-dessous, pour être sûr qu'ils soient bien conservés.
@@ -273,6 +293,16 @@ public final class GearRegistry {
         return item;
     }
 
+    /**
+     * Objet de base TOUJOURS disponible pour un type donné (épée en bois / pièce en cuir,
+     * sans le moindre enchantement) : ne fait pas partie de la collection à débloquer, il
+     * est utilisable et équipable à tout moment sans condition, comme un point de départ
+     * permanent. Reconstruit à la volée (n'est jamais stocké dans la collection du joueur).
+     */
+    public static ItemStack objetParDefaut(TypeEquipement type) {
+        return construireItem(type, 0, NiveauEnchant.AUCUN);
+    }
+
     public static TypeEquipement getType(ItemStack item) {
         Material m = item.getType();
         for (Material c : CASQUES) if (c == m) return TypeEquipement.CASQUE;
@@ -283,10 +313,51 @@ public final class GearRegistry {
         return null;
     }
 
+    /** Rareté AFFICHÉE (matériau + bonus d'enchantement), utilisée pour le tri par puissance. */
     public static int getRarete(ItemStack item) {
         if (item == null || !item.hasItemMeta()) return 0;
         Integer v = item.getItemMeta().getPersistentDataContainer().get(Cles.RARETE, PersistentDataType.INTEGER);
         return v == null ? 0 : v;
+    }
+
+    /**
+     * Tier RÉEL du matériau (0=bois/cuir ... 4=netherite), indépendant du bonus de rareté
+     * apporté par l'enchantement. Retrouvé directement depuis le Material de l'objet, donc
+     * fiable même si {@link #getRarete} a été gonflé par un enchantement fort.
+     */
+    public static int getTierMateriau(ItemStack item) {
+        TypeEquipement type = getType(item);
+        if (type == null) return 0;
+        Material m = item.getType();
+        Material[] tableau = switch (type) {
+            case CASQUE -> CASQUES;
+            case PLASTRON -> PLASTRONS;
+            case JAMBIERES -> JAMBIERES;
+            case BOTTES -> BOTTES;
+            case ARME -> EPEES;
+        };
+        for (int i = 0; i < tableau.length; i++) {
+            if (tableau[i] == m) return i;
+        }
+        return 0;
+    }
+
+    public static NiveauEnchant getNiveauEnchant(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return NiveauEnchant.AUCUN;
+        Integer v = item.getItemMeta().getPersistentDataContainer().get(Cles.GEAR_NIVEAU_ENCHANT, PersistentDataType.INTEGER);
+        if (v == null) return NiveauEnchant.AUCUN;
+        NiveauEnchant[] valeurs = NiveauEnchant.values();
+        return (v >= 0 && v < valeurs.length) ? valeurs[v] : NiveauEnchant.AUCUN;
+    }
+
+    /**
+     * Identifiant unique (type + matériau + niveau d'enchantement) servant à l'anti-doublon
+     * de la roue ET à regrouper l'affichage dans le menu d'équipement.
+     */
+    public static String getSignature(ItemStack item) {
+        TypeEquipement type = getType(item);
+        if (type == null) return "?";
+        return signature(type, getTierMateriau(item), getNiveauEnchant(item));
     }
 
     public static Material getMaterialParDefaut(TypeEquipement type) {
@@ -300,11 +371,11 @@ public final class GearRegistry {
     }
 
     /**
-     * Nombre total de combinaisons matériau (type × tier) obtenables, utilisé par le
-     * système de défis pour les objectifs "collection complète".
+     * Nombre total de combinaisons (type × matériau × niveau d'enchantement) obtenables,
+     * utilisé par le système de défis pour les objectifs "collection complète".
      */
     public static int getNombreCombinaisonsTotal() {
-        return TypeEquipement.values().length * MobRarity.values().length;
+        return TypeEquipement.values().length * MobRarity.values().length * NiveauEnchant.values().length;
     }
 
     /**
@@ -318,6 +389,37 @@ public final class GearRegistry {
         return item.getItemMeta().getEnchants().entrySet().stream()
                 .map(e -> nomEnchant(e.getKey()) + " " + chiffreRomain(e.getValue()))
                 .collect(java.util.stream.Collectors.joining(", "));
+    }
+
+    /**
+     * Description courte des dégâts (pour une arme) et des effets notables infligés par les
+     * enchantements (mise à feu, recul, renvoi de dégâts...), pour affichage dans le menu
+     * d'équipement — permet de comparer les pièces d'une même page "à l'œil" au-delà du seul
+     * nom et de la rareté.
+     */
+    public static List<String> decrireEffets(ItemStack item) {
+        List<String> lignes = new ArrayList<>();
+        TypeEquipement type = getType(item);
+        if (type == TypeEquipement.ARME) {
+            int tier = getTierMateriau(item);
+            double degats = DEGATS_BASE_EPEE[Math.max(0, Math.min(tier, DEGATS_BASE_EPEE.length - 1))];
+            Integer tranchant = item.hasItemMeta() ? item.getItemMeta().getEnchants().get(Enchantment.SHARPNESS) : null;
+            if (tranchant != null) degats += 1.25 * tranchant;
+            lignes.add("§cDégâts de base : §f≈" + String.format(java.util.Locale.ROOT, "%.1f", degats) + " ♥");
+        }
+        if (item.hasItemMeta()) {
+            for (Enchantment ench : item.getItemMeta().getEnchants().keySet()) {
+                if (ench.equals(Enchantment.FIRE_ASPECT)) lignes.add("§6✦ Enflamme la cible touchée");
+                else if (ench.equals(Enchantment.KNOCKBACK)) lignes.add("§6✦ Recul renforcé");
+                else if (ench.equals(Enchantment.THORNS)) lignes.add("§6✦ Renvoie des dégâts à l'attaquant");
+                else if (ench.equals(Enchantment.SWEEPING_EDGE)) lignes.add("§6✦ Dégâts de zone au coup balayé");
+                else if (ench.equals(Enchantment.PROTECTION) || ench.equals(Enchantment.BLAST_PROTECTION)
+                        || ench.equals(Enchantment.PROJECTILE_PROTECTION) || ench.equals(Enchantment.FIRE_PROTECTION)) {
+                    lignes.add("§6✦ Réduit les dégâts subis");
+                }
+            }
+        }
+        return lignes;
     }
 
     private static String nomEnchant(Enchantment ench) {

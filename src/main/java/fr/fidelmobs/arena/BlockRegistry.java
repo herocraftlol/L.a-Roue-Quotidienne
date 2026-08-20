@@ -155,18 +155,19 @@ public final class BlockRegistry {
         for (MobRarity r : MobRarity.values()) poidsTotal += r.getPoids();
 
         int tirage = RANDOM.nextInt(poidsTotal);
-        final MobRarity[] rareteTiree = {MobRarity.COMMUN};
+        MobRarity rareteTiree = MobRarity.COMMUN;
         int cumul = 0;
         for (MobRarity r : MobRarity.values()) {
             cumul += r.getPoids();
             if (tirage < cumul) {
-                rareteTiree[0] = r;
+                rareteTiree = r;
                 break;
             }
         }
 
+        final MobRarity finale = rareteTiree;
         List<Material> candidats = RARETE_PAR_BLOC.entrySet().stream()
-                .filter(e -> e.getValue() == rareteTiree[0])
+                .filter(e -> e.getValue() == finale)
                 .map(Map.Entry::getKey)
                 .toList();
 

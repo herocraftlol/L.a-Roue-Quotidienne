@@ -37,21 +37,24 @@ public final class DefiRegistry {
 
     // ---- Barème de récompense lié à la difficulté (rareté) du défi ----
     private static int pointsPour(MobRarity r) {
+        // Barème revu à la baisse : les défis étaient devenus une source de points bien
+        // plus rapide que le PvP lui-même, ce qui (combiné aux tickets ci-dessous) créait
+        // une boucle "je tourne la roue → un défi se débloque → ça me donne de quoi
+        // retourner la roue immédiatement". Ici pour ralentir la progression globale.
         return switch (r) {
-            case COMMUN -> 10;
-            case PEU_COMMUN -> 30;
-            case RARE -> 75;
-            case EPIQUE -> 175;
-            case LEGENDAIRE -> 400;
+            case COMMUN -> 6;
+            case PEU_COMMUN -> 18;
+            case RARE -> 40;
+            case EPIQUE -> 90;
+            case LEGENDAIRE -> 200;
         };
     }
 
     private static int ticketsPour(MobRarity r) {
-        return switch (r) {
-            case LEGENDAIRE -> 2;
-            case EPIQUE -> 1;
-            default -> 0;
-        };
+        // Les tickets de roue ne doivent plus être une récompense courante des défis :
+        // seuls les défis LÉGENDAIRES (les plus rares/difficiles) en donnent, et un seul à
+        // la fois, pour casser la boucle roue → défi → ticket → roue.
+        return r == MobRarity.LEGENDAIRE ? 1 : 0;
     }
 
     // ---- Petites fabriques pour raccourcir la déclaration des ~110 défis ci-dessous ----

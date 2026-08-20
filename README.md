@@ -1,28 +1,44 @@
 # LoyaltyMobs
 
-![Version](https://img.shields.io/badge/Version-1.0.38-blue)
+![Version](https://img.shields.io/badge/Version-1.0.39-blue)
 ![Paper](https://img.shields.io/badge/Paper-1.21-green)
 ![Java](https://img.shields.io/badge/Java-21-orange)
 
-**LoyaltyMobs** est un plugin Minecraft Paper 1.21 qui transforme votre serveur en une véritable expérience de jeu collaborative. Fidélisez vos joueurs avec un système de connexion quotidienne, une roue de la fortune pour collectionner des mobs, des blocs et des équipements, le tout 结合 une arène PvP unique en son genre !
+**LoyaltyMobs** est un plugin Minecraft Paper 1.21 qui transforme votre serveur en une véritable expérience de jeu collaborative. Fidélisez vos joueurs avec un système de connexion quotidienne, une roue de la fortune pour collectionner des mobs, des blocs et des équipements, le tout combiné à une arène PvP unique en son genre !
 
 ## 📥 Télécharger
 
 Téléchargez la dernière version ici : **[Releases](https://github.com/herocraftlol/L.a-Roue-Quotidienne/releases)**
 
-## 🆕 Dernières nouveautés (v1.0.38)
+## 🆕 Dernières nouveautés (v1.0.39)
 
-- **Système de niveaux** : Progression par niveaux avec expérience gagnée en arène PvP
-- **Défis quotidiens et globaux** : De nouveaux défis avec récompenses variées
-- **Améliorations de stabilité** : Optimisations générales et corrections de bugs
-- **Améliorations de l'arène PvP** : Optimisation des systèmes de combat et de gestion des blocs
-- **Nouvelles flèches magiques** : Modèles de flèches avec effets supplémentaires
-- **Système de pouvoirs spéciaux** : Nouveaux effets et meilleure gestion des cooldowns
-- **Optimisations générales** : Amélioration des performances
+- **Équipements enchantés à collectionner** : chaque pièce d'équipement existe désormais en variante brute ou enchantée (enchantement faible ou fort). Chaque variante compte comme un objet distinct de votre collection, pour une vraie panoplie par emplacement !
+- **Menu d'équipement à onglets** : `/equipement` ouvre désormais un menu complet avec un onglet par emplacement (Arme, Casque, Plastron, Jambières, Bottes, Flèches), l'équipement de base gratuit toujours disponible en tête de liste.
+- **Cuir teinté par rareté** : les pièces en cuir affichent une couleur assortie à leur rareté, pour les repérer d'un coup d'œil.
+- **Détection des doublons par signature** : la roue tient compte du matériau **et** du niveau d'enchantement — une version enchantée d'un matériau déjà possédé reste une nouveauté à gagner.
+- **Rééquilibrage des défis** : les points de récompense ont été revus à la baisse et seuls les défis légendaires rapportent un ticket de roue, pour ralentir la boucle roue → défi → ticket.
+- **Correction des alliés** : un mob allié dont la cible devient invalide la relâche désormais proprement au lieu de l'attaquer indéfiniment.
 
 ---
 
 ## 📜 Changelog
+
+### v1.0.39
+- Nouveau système d'équipements enchantés à collectionner (variante brute / enchantée faible / enchantée forte par matériau)
+- Menu d'équipement repensé avec onglets par emplacement (Arme, Casque, Plastron, Jambières, Bottes, Flèches)
+- Teinte des pièces en cuir selon leur rareté
+- Détection des doublons à la roue basée sur la signature complète (matériau + enchantements)
+- Rééquilibrage des récompenses de défis (points réduits, tickets réservés aux défis légendaires)
+- Correction de la gestion des cibles invalides des mobs alliés
+
+### v1.0.38
+- Système de niveaux avec progression par XP
+- Défis quotidiens et globaux avec récompenses variées
+- Améliorations de stabilité et corrections de bugs
+- Améliorations de l'arène PvP (combat et gestion des blocs)
+- Nouvelles flèches magiques avec effets supplémentaires
+- Système de pouvoirs spéciaux optimisé
+- Optimisations générales des performances
 
 ### v1.0.37
 - Ajout du système de niveaux avec progression par XP

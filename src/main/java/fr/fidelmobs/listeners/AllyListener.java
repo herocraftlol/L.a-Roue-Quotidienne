@@ -1,7 +1,7 @@
 package fr.fidelmobs.listeners;
 
-import fr.fidelmobs.Cles;
 import fr.fidelmobs.LoyaltyMobsPlugin;
+import fr.fidelmobs.Cles;
 import fr.fidelmobs.data.PlayerDataManager;
 import fr.fidelmobs.mobs.MobRarity;
 import fr.fidelmobs.mobs.MobRegistry;
@@ -132,10 +132,14 @@ public class AllyListener implements Listener {
                         continue; // garde sa cible actuelle tant qu'elle reste valide
                     }
 
+                    // La cible actuelle est absente, morte, ou invalide (propriétaire/allié) :
+                    // on la remplace par une nouvelle cible ennemie si on en trouve une, et on
+                    // l'efface explicitement sinon (mob.setTarget(null)). Ce dernier cas est
+                    // important : sans lui, une cible devenue invalide (ex. un mob rallié qui
+                    // ciblait encore son ex-propriétaire) restait attaquée indéfiniment tant
+                    // qu'aucun adversaire de remplacement n'était trouvé.
                     LivingEntity nouvelleCible = trouverCibleEnnemieLaPlusProche(proprietaire, mob);
-                    if (nouvelleCible != null) {
-                        mob.setTarget(nouvelleCible);
-                    }
+                    mob.setTarget(nouvelleCible);
                 }
             }
         }, INTERVALLE_CIBLAGE_TICKS, INTERVALLE_CIBLAGE_TICKS);

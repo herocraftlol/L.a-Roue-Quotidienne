@@ -4,7 +4,6 @@ import fr.fidelmobs.Cles;
 import fr.fidelmobs.LoyaltyMobsPlugin;
 import fr.fidelmobs.arena.GearRegistry;
 import fr.fidelmobs.data.PlayerDataManager;
-import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EntityEquipment;
 import org.bukkit.inventory.EquipmentSlot;
@@ -32,13 +31,7 @@ public class KitManager {
     }
 
     private ItemStack objetParDefaut(GearRegistry.TypeEquipement type) {
-        Material material = GearRegistry.getMaterialParDefaut(type);
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        meta.setUnbreakable(true);
-        meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_UNBREAKABLE, org.bukkit.inventory.ItemFlag.HIDE_ATTRIBUTES);
-        item.setItemMeta(meta);
-        return item;
+        return GearRegistry.objetParDefaut(type);
     }
 
     public ItemStack verrouiller(ItemStack item) {

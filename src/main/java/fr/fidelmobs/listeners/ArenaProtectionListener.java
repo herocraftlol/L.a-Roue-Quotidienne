@@ -392,7 +392,16 @@ public class ArenaProtectionListener implements Listener {
         String actionPage = clique.getItemMeta().getPersistentDataContainer().get(Cles.EQUIPEMENT_PAGE_ACTION, PersistentDataType.STRING);
         if (actionPage != null) {
             int nouvellePage = "next".equals(actionPage) ? holder.getPage() + 1 : holder.getPage() - 1;
-            plugin.getGearSelectorManager().ouvrirMenu(player, nouvellePage);
+            plugin.getGearSelectorManager().ouvrirMenu(player, holder.getOnglet(), nouvellePage);
+            return;
+        }
+
+        Integer ongletVise = clique.getItemMeta().getPersistentDataContainer()
+                .get(Cles.EQUIPEMENT_ONGLET_ACTION, PersistentDataType.INTEGER);
+        if (ongletVise != null) {
+            if (ongletVise != holder.getOnglet()) {
+                plugin.getGearSelectorManager().ouvrirMenu(player, ongletVise, 0);
+            }
             return;
         }
 
@@ -403,7 +412,13 @@ public class ArenaProtectionListener implements Listener {
         if (categorie == null || index == null) return;
 
         player.closeInventory();
-        plugin.getGearSelectorManager().choisir(player, categorie, index);
+        if (index == -1) {
+            fr.fidelmobs.arena.GearRegistry.TypeEquipement[] types = fr.fidelmobs.arena.GearRegistry.TypeEquipement.values();
+            int ongletActuel = Math.max(0, Math.min(holder.getOnglet(), types.length - 1));
+            plugin.getGearSelectorManager().choisirGearParDefaut(player, types[ongletActuel]);
+        } else {
+            plugin.getGearSelectorManager().choisir(player, categorie, index);
+        }
     }
 
     @EventHandler

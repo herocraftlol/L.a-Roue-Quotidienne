@@ -11,6 +11,7 @@ public class GearSelectorInventoryHolder implements InventoryHolder {
 
     private Inventory inventory;
     private int page;
+    private int onglet;
 
     @Override
     public Inventory getInventory() {
@@ -27,5 +28,13 @@ public class GearSelectorInventoryHolder implements InventoryHolder {
 
     public void setPage(int page) {
         this.page = page;
+    }
+
+    public int getOnglet() {
+        return onglet;
+    }
+
+    public void setOnglet(int onglet) {
+        this.onglet = onglet;
     }
 }

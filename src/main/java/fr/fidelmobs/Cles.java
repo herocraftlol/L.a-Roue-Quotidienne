@@ -9,6 +9,7 @@ public final class Cles {
 
     public static final NamespacedKey RARETE = new NamespacedKey("fidelmobs", "rarete");
     public static final NamespacedKey ENCHANTE = new NamespacedKey("fidelmobs", "enchante");
+    public static final NamespacedKey GEAR_NIVEAU_ENCHANT = new NamespacedKey("fidelmobs", "gear_niveau_enchant");
     public static final NamespacedKey KIT_VERROUILLE = new NamespacedKey("fidelmobs", "kit_verrouille");
     public static final NamespacedKey CHARGE_BLOC = new NamespacedKey("fidelmobs", "charge_bloc");
     public static final NamespacedKey BLOC_POSE = new NamespacedKey("fidelmobs", "bloc_pose");
@@ -24,6 +25,7 @@ public final class Cles {
     public static final NamespacedKey EQUIPEMENT_CHOIX_INDEX = new NamespacedKey("fidelmobs", "equipement_choix_index");
     public static final NamespacedKey EQUIPEMENT_CHOIX_CATEGORIE = new NamespacedKey("fidelmobs", "equipement_choix_categorie");
     public static final NamespacedKey EQUIPEMENT_PAGE_ACTION = new NamespacedKey("fidelmobs", "equipement_page_action");
+    public static final NamespacedKey EQUIPEMENT_ONGLET_ACTION = new NamespacedKey("fidelmobs", "equipement_onglet_action");
 
     // Flèches à effet (collection obtenue à la roue, équipables/tirables avec l'arc du kit)
     public static final NamespacedKey FLECHE_RARETE = new NamespacedKey("fidelmobs", "fleche_rarete");
