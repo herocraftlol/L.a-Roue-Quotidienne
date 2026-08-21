@@ -1,6 +1,6 @@
 # LoyaltyMobs
 
-![Version](https://img.shields.io/badge/Version-1.0.39-blue)
+![Version](https://img.shields.io/badge/Version-1.0.40-blue)
 ![Paper](https://img.shields.io/badge/Paper-1.21-green)
 ![Java](https://img.shields.io/badge/Java-21-orange)
 
@@ -10,18 +10,20 @@
 
 Téléchargez la dernière version ici : **[Releases](https://github.com/herocraftlol/L.a-Roue-Quotidienne/releases)**
 
-## 🆕 Dernières nouveautés (v1.0.39)
+## 🆕 Dernières nouveautés (v1.0.40)
 
-- **Équipements enchantés à collectionner** : chaque pièce d'équipement existe désormais en variante brute ou enchantée (enchantement faible ou fort). Chaque variante compte comme un objet distinct de votre collection, pour une vraie panoplie par emplacement !
-- **Menu d'équipement à onglets** : `/equipement` ouvre désormais un menu complet avec un onglet par emplacement (Arme, Casque, Plastron, Jambières, Bottes, Flèches), l'équipement de base gratuit toujours disponible en tête de liste.
-- **Cuir teinté par rareté** : les pièces en cuir affichent une couleur assortie à leur rareté, pour les repérer d'un coup d'œil.
-- **Détection des doublons par signature** : la roue tient compte du matériau **et** du niveau d'enchantement — une version enchantée d'un matériau déjà possédé reste une nouveauté à gagner.
-- **Rééquilibrage des défis** : les points de récompense ont été revus à la baisse et seuls les défis légendaires rapportent un ticket de roue, pour ralentir la boucle roue → défi → ticket.
-- **Correction des alliés** : un mob allié dont la cible devient invalide la relâche désormais proprement au lieu de l'attaquer indéfiniment.
+- **Onglets du menu d'équipement réparés** : dans `/equipement`, chaque onglet affiche désormais le bon emplacement (Casque, Plastron, Jambières, Bottes, Arme, Flèches). Auparavant, l'ordre des onglets était décalé et l'onglet « Arme » pouvait montrer le mauvais contenu — fini les confusions en plein stuff d'arène !
+- **Flèches à effet plus lisibles** : l'infobulle des flèches à effet n'affiche plus la liste brute des effets de potion. L'affichage reste propre et coloré selon la rareté, sans pavé d'effets qui masque l'essentiel.
+- **Stabilité et compatibilité Paper 1.21** : ajustements internes pour rester parfaitement aligné avec l'API Paper 1.21 et corrections mineures de code.
 
 ---
 
 ## 📜 Changelog
+
+### v1.0.40
+- Correction de l'ordre des onglets du menu d'équipement (chaque onglet affiche le bon emplacement)
+- Infobulles des flèches à effet épurées (effets de potion masqués, affichage plus propre)
+- Ajustements internes de compatibilité avec l'API Paper 1.21
 
 ### v1.0.39
 - Nouveau système d'équipements enchantés à collectionner (variante brute / enchantée faible / enchantée forte par matériau)

@@ -39,14 +39,16 @@ public class GearSelectorManager {
     private static final String CATEGORIE_FLECHE = "FLECHE";
     private static final int SLOTS_PAR_PAGE = 45; // dernière ligne (9 slots) réservée à la navigation/aux onglets
 
-    // 0-4 : les 5 emplacements d'équipement (même ordre que GearRegistry.TypeEquipement), 5 : flèches
+    // 0-4 : les 5 emplacements d'équipement, DANS LE MÊME ORDRE que l'enum
+    // GearRegistry.TypeEquipement (CASQUE, PLASTRON, JAMBIERES, BOTTES, ARME) — l'ordre doit
+    // rester identique, sinon l'onglet cliqué n'affiche pas le bon emplacement. 5 : flèches.
     private static final int ONGLET_FLECHES = GearRegistry.TypeEquipement.values().length;
     private static final Material[] ICONES_ONGLET = {
-            Material.IRON_SWORD, Material.IRON_HELMET, Material.IRON_CHESTPLATE,
-            Material.IRON_LEGGINGS, Material.IRON_BOOTS, Material.TIPPED_ARROW
+            Material.IRON_HELMET, Material.IRON_CHESTPLATE, Material.IRON_LEGGINGS,
+            Material.IRON_BOOTS, Material.IRON_SWORD, Material.TIPPED_ARROW
     };
     private static final String[] NOMS_ONGLET = {
-            "Arme", "Casque", "Plastron", "Jambières", "Bottes", "Flèches"
+            "Casque", "Plastron", "Jambières", "Bottes", "Arme", "Flèches"
     };
 
     private final LoyaltyMobsPlugin plugin;
