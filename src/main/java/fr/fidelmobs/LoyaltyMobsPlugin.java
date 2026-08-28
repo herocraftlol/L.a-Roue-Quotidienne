@@ -8,6 +8,8 @@ import fr.fidelmobs.commands.ArmeeCommand;
 import fr.fidelmobs.commands.BlocCommand;
 import fr.fidelmobs.commands.ClassementCommand;
 import fr.fidelmobs.commands.DefiCommand;
+import fr.fidelmobs.commands.SacrifierCommand;
+import fr.fidelmobs.commands.ShopCommand;
 import fr.fidelmobs.commands.EquipementCommand;
 import fr.fidelmobs.commands.InvoquerCommand;
 import fr.fidelmobs.commands.PointsCommand;
@@ -27,6 +29,9 @@ import fr.fidelmobs.managers.BlockSelectorManager;
 import fr.fidelmobs.managers.BuildBlockManager;
 import fr.fidelmobs.managers.GearSelectorManager;
 import fr.fidelmobs.managers.HologramManager;
+import fr.fidelmobs.managers.PersonalHologramManager;
+import fr.fidelmobs.sacrifice.SacrificeManager;
+import fr.fidelmobs.shop.ShopManager;
 import fr.fidelmobs.managers.InvocationManager;
 import fr.fidelmobs.managers.KitManager;
 import fr.fidelmobs.managers.PowerSelectorManager;
@@ -43,6 +48,9 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
     private ArenaScoreboardManager scoreboardManager;
     private ArenaProtectionListener arenaProtectionListener;
     private HologramManager hologramManager;
+    private PersonalHologramManager personalHologramManager;
+    private SacrificeManager sacrificeManager;
+    private ShopManager shopManager;
     private InvocationManager invocationManager;
     private BlockSelectorManager blockSelectorManager;
     private GearSelectorManager gearSelectorManager;
@@ -65,6 +73,9 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
         this.scoreboardManager = new ArenaScoreboardManager(this);
         this.arenaProtectionListener = new ArenaProtectionListener(this);
         this.hologramManager = new HologramManager(this);
+        this.personalHologramManager = new PersonalHologramManager(this);
+        this.sacrificeManager = new SacrificeManager(this);
+        this.shopManager = new ShopManager(this);
         this.invocationManager = new InvocationManager(this);
         this.blockSelectorManager = new BlockSelectorManager(this);
         this.gearSelectorManager = new GearSelectorManager(this);
@@ -87,6 +98,8 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
         getCommand("points").setExecutor(new PointsCommand(this));
         getCommand("acheterticket").setExecutor(new AcheterTicketCommand(this));
         getCommand("defi").setExecutor(new DefiCommand(this));
+        getCommand("sacrifier").setExecutor(new SacrifierCommand(this));
+        getCommand("shop").setExecutor(new ShopCommand(this));
 
         AdminTicketCommand adminTicketCommand = new AdminTicketCommand(this);
         getCommand("adminticket").setExecutor(adminTicketCommand);
@@ -131,6 +144,9 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
         if (hologramManager != null) {
             hologramManager.retirer();
         }
+        if (personalHologramManager != null) {
+            personalHologramManager.retirerTout();
+        }
         if (databaseManager != null) {
             databaseManager.close();
         }
@@ -167,6 +183,18 @@ public class LoyaltyMobsPlugin extends JavaPlugin {
 
     public HologramManager getHologramManager() {
         return hologramManager;
+    }
+
+    public PersonalHologramManager getPersonalHologramManager() {
+        return personalHologramManager;
+    }
+
+    public SacrificeManager getSacrificeManager() {
+        return sacrificeManager;
+    }
+
+    public ShopManager getShopManager() {
+        return shopManager;
     }
 
     public InvocationManager getInvocationManager() {

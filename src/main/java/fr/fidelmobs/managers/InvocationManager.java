@@ -132,6 +132,13 @@ public class InvocationManager {
             return;
         }
 
+        int cout = coutInvocation(MobRegistry.getRarete(type));
+        if (!data.retirerPoints(uuid, cout)) {
+            player.sendMessage("§cIl te faut §e" + cout + " points de fidélité §cpour invoquer " + nomLisible(type)
+                    + " §c(tu as §e" + data.getPoints(uuid) + "§c).");
+            return;
+        }
+
         // Le temps de recharge n'est plus fixé arbitrairement à l'invocation : il est
         // désormais calculé à la mort (ou expiration après 5 min) du mob, proportionnellement
         // à sa puissance ET au temps qu'il a fallu pour le vaincre (voir
@@ -162,8 +169,8 @@ public class InvocationManager {
         data.save(uuid);
 
         int restantes = disponibles - 1;
-        player.sendMessage("§aTu as invoqué " + rarete.getCouleur() + nomLisible(type) + " §aà tes côtés ! §7("
-                + restantes + " autre(s) disponible(s) tout de suite. Le temps de recharge de celle-ci ne "
+        player.sendMessage("§aTu as invoqué " + rarete.getCouleur() + nomLisible(type) + " §aà tes côtés ! §7(§c-" + cout
+                + " points§7, " + restantes + " autre(s) disponible(s) tout de suite. Le temps de recharge de celle-ci ne "
                 + "démarrera qu'à sa mort, et dépendra de sa puissance et du temps qu'il faudra pour la vaincre.)");
     }
 
@@ -178,6 +185,7 @@ public class InvocationManager {
         List<String> lore = new ArrayList<>();
         lore.add("§7Possédés : " + rarete.getCouleur() + nombre);
         lore.add("§7Rareté : " + rarete.getCouleur() + rarete.getLabel());
+        lore.add("§7Coût : §e" + coutInvocation(rarete) + " points");
         lore.add("");
         if (disponibles > 0) {
             lore.add("§aDisponibles : " + disponibles + "/" + nombre);
@@ -192,6 +200,21 @@ public class InvocationManager {
         meta.getPersistentDataContainer().set(Cles.INVOCATION_TYPE, PersistentDataType.STRING, type.name());
         icone.setItemMeta(meta);
         return icone;
+    }
+
+    /**
+     * Coût en points de fidélité pour invoquer un mob, proportionnel à sa puissance : plus
+     * il est rare, plus il coûte cher à faire sortir (en plus du temps de recharge à sa
+     * mort). Empêche de spammer des invocations de mobs légendaires sans réfléchir.
+     */
+    public static int coutInvocation(MobRarity rarete) {
+        return switch (rarete) {
+            case COMMUN -> 15;
+            case PEU_COMMUN -> 40;
+            case RARE -> 90;
+            case EPIQUE -> 180;
+            case LEGENDAIRE -> 350;
+        };
     }
 
     private String formatDuree(long ms) {

@@ -32,6 +32,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
@@ -97,6 +98,7 @@ public class ArenaProtectionListener implements Listener {
             plugin.getGearSelectorManager().donnerItem(player);
             plugin.getPowerSelectorManager().donnerItem(player);
             plugin.getScoreboardManager().entrerEnArene(player);
+            plugin.getPersonalHologramManager().entrerEnArene(player);
             // Le changement de gamemode et les modifications d'inventaire dans le même tick
             // peuvent se désynchroniser côté client (le paquet de resync du gamemode écrase
             // parfois un slot tout juste posé) : on force un renvoi complet de l'inventaire,
@@ -128,6 +130,7 @@ public class ArenaProtectionListener implements Listener {
             plugin.getArrowManager().oublierJoueur(player.getUniqueId());
             plugin.getPowerUseManager().oublierJoueur(player.getUniqueId());
             plugin.getScoreboardManager().sortirDeArene(player);
+            plugin.getPersonalHologramManager().sortirDeArene(player);
             player.updateInventory();
             player.sendMessage("§7Vous quittez l'arène PvP.");
         }
@@ -431,6 +434,39 @@ public class ArenaProtectionListener implements Listener {
     }
 
     @EventHandler
+    public void onClicMenuBoutique(InventoryClickEvent event) {
+        if (!(event.getInventory().getHolder() instanceof fr.fidelmobs.shop.ShopInventoryHolder holder)) return;
+        event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+
+        ItemStack clique = event.getCurrentItem();
+        if (clique == null || !clique.hasItemMeta()) return;
+
+        String actionPage = clique.getItemMeta().getPersistentDataContainer().get(Cles.SHOP_PAGE_ACTION, PersistentDataType.STRING);
+        if (actionPage != null) {
+            int nouvellePage = "next".equals(actionPage) ? holder.getPage() + 1 : holder.getPage() - 1;
+            plugin.getShopManager().ouvrirMenu(player, holder.getOnglet(), nouvellePage);
+            return;
+        }
+
+        Integer ongletVise = clique.getItemMeta().getPersistentDataContainer().get(Cles.SHOP_ONGLET_ACTION, PersistentDataType.INTEGER);
+        if (ongletVise != null) {
+            if (ongletVise != holder.getOnglet()) {
+                plugin.getShopManager().ouvrirMenu(player, ongletVise, 0);
+            }
+            return;
+        }
+
+        String categorie = clique.getItemMeta().getPersistentDataContainer().get(Cles.SHOP_CATEGORIE, PersistentDataType.STRING);
+        String id = clique.getItemMeta().getPersistentDataContainer().get(Cles.SHOP_ID, PersistentDataType.STRING);
+        if (categorie == null || id == null) return;
+
+        plugin.getShopManager().acheter(player, categorie, id);
+        // Réaffiche le menu à la même page pour refléter immédiatement le nouveau solde/achat.
+        plugin.getShopManager().ouvrirMenu(player, holder.getOnglet(), holder.getPage());
+    }
+
+    @EventHandler
     public void onClicMenuSelecteurPouvoir(InventoryClickEvent event) {
         if (!(event.getInventory().getHolder() instanceof PowerSelectorInventoryHolder)) return;
         event.setCancelled(true);
@@ -660,6 +696,13 @@ public class ArenaProtectionListener implements Listener {
     }
 
     @EventHandler
+    public void onConnexion(PlayerJoinEvent event) {
+        // Les hologrammes personnels de stats des autres joueurs déjà en arène ne doivent
+        // jamais être visibles par ce nouveau venu.
+        plugin.getPersonalHologramManager().masquerPourNouveauJoueur(event.getPlayer());
+    }
+
+    @EventHandler
     public void onDeconnexion(PlayerQuitEvent event) {
         UUID uuid = event.getPlayer().getUniqueId();
         joueursDansArene.remove(uuid);
@@ -668,5 +711,6 @@ public class ArenaProtectionListener implements Listener {
         plugin.getScoreboardManager().onDeconnexion(uuid);
         plugin.getArrowManager().oublierJoueur(uuid);
         plugin.getPowerUseManager().oublierJoueur(uuid);
+        plugin.getPersonalHologramManager().sortirDeArene(event.getPlayer());
     }
 }

@@ -303,6 +303,16 @@ public final class GearRegistry {
         return construireItem(type, 0, NiveauEnchant.AUCUN);
     }
 
+    /**
+     * Construit la version BRUTE (sans enchantement) d'un type+tier donné — utilisé par la
+     * boutique, qui ne vend jamais que du stuff brut : les versions enchantées restent
+     * exclusives à la roue, pour que la boutique n'écrase pas son intérêt.
+     */
+    public static ItemStack construireBrut(TypeEquipement type, int tier) {
+        int tierBorne = Math.max(0, Math.min(tier, MobRarity.values().length - 1));
+        return construireItem(type, tierBorne, NiveauEnchant.AUCUN);
+    }
+
     public static TypeEquipement getType(ItemStack item) {
         Material m = item.getType();
         for (Material c : CASQUES) if (c == m) return TypeEquipement.CASQUE;
