@@ -1,35 +1,48 @@
 # LoyaltyMobs
 
-![Version](https://img.shields.io/badge/Version-1.0.40-blue)
+![Version](https://img.shields.io/badge/Version-1.0.41-blue)
 ![Paper](https://img.shields.io/badge/Paper-1.21-green)
 ![Java](https://img.shields.io/badge/Java-21-orange)
 
-**LoyaltyMobs** est un plugin Minecraft Paper 1.21 qui transforme votre serveur en une véritable expérience de jeu collaborative. Fidélisez vos joueurs avec un système de connexion quotidienne, une roue de la fortune pour collectionner des mobs, des blocs et des équipements, le tout combiné à une arène PvP unique en son genre !
+**LoyaltyMobs** est un plugin Minecraft Paper 1.21 qui transforme votre serveur en une véritable expérience de jeu collaborative. Fidélisez vos joueurs avec un système de **connexion quotidienne**, une **roue de la fortune** pour collectionner des mobs, des blocs, des équipements et des pouvoirs, le tout combiné à une **arène PvP** unique en son genre, avec une vraie économie de **points de fidélité**.
 
 ## 📥 Télécharger
 
 Téléchargez la dernière version ici : **[Releases](https://github.com/herocraftlol/L.a-Roue-Quotidienne/releases)**
 
-## 🆕 Dernières nouveautés (v1.0.40)
+Le fichier `.jar` compilé du plugin et le code source complet sont joints à chaque publication.
 
-- **Onglets du menu d'équipement réparés** : dans `/equipement`, chaque onglet affiche désormais le bon emplacement (Casque, Plastron, Jambières, Bottes, Arme, Flèches). Auparavant, l'ordre des onglets était décalé et l'onglet « Arme » pouvait montrer le mauvais contenu — fini les confusions en plein stuff d'arène !
-- **Flèches à effet plus lisibles** : l'infobulle des flèches à effet n'affiche plus la liste brute des effets de potion. L'affichage reste propre et coloré selon la rareté, sans pavé d'effets qui masque l'essentiel.
-- **Stabilité et compatibilité Paper 1.21** : ajustements internes pour rester parfaitement aligné avec l'API Paper 1.21 et corrections mineures de code.
+## 🆕 Dernières nouveautés (v1.0.41)
+
+- **🎯 `/shop` — Boutique de points de fidélité en jeu** : parcourez et achetez directement, contre vos points de fidélité, n'importe quel mob, bloc, pouvoir ou pièce d'équipement (version brute), avec onglets et pagination. Les versions enchantées restent exclusives à la roue.
+- **💠 `/sacrifier` — Le système de sublimation** : convertissez une catégorie (voire toute) votre collection en points de fidélité, à hauteur de sa rareté, avec confirmation obligatoire en deux temps (irréversible — 30 s). Idéal pour repartir à zéro et réinvestir ailleurs.
+- **📊 Hologramme personnel au-dessus de chaque joueur en arène** : nom, kills, morts, K/D, niveau et tickets disponibles, visible uniquement par le joueur concerné.
+- **🛡 Octroi d'alliés payant** : `/invoquer` coûte désormais des points de fidélité proportionnels à la puissance du mob, avec un retour clair du coût.
+- **Économie harmonisée** : prix de la boutique et valeur de sublimation calés sur le coût d'un ticket de roue, pour un rapport logique et cohérent (la roue reste la source la plus rentable).
+- **Compatibilité Paper 1.21** : corrections d'API (attributs, flags d'items) et optimisations de code.
 
 ---
 
 ## 📜 Changelog
 
+### v1.0.41
+- Nouvelle boutique `/shop` : achat direct de mobs, blocs, pouvoirs et équipements bruts contre des points de fidélité
+- Nouvelle commande `/sacrifier` : sublimation d'une catégorie (ou tout) de la collection contre des points (irréversible, confirmation 30 s)
+- Hologramme personnel au-dessus de la tête de chaque joueur en arène (stats visibles uniquement par lui)
+- `/invoquer` coûte désormais des points de fidélité proportionnels à la rareté du mob
+- Économie des points harmonisée (boutique / sublimation / coûts) autour du prix du ticket de roue
+- Corrections de compatibilité avec l'API Paper 1.21 (attributs, item flags) et optimisations
+
 ### v1.0.40
-- Correction de l'ordre des onglets du menu d'équipement (chaque onglet affiche le bon emplacement)
+- Correction de l'ordre des onglets du menu équipement (chaque onglet affiche le bon emplacement)
 - Infobulles des flèches à effet épurées (effets de potion masqués, affichage plus propre)
 - Ajustements internes de compatibilité avec l'API Paper 1.21
 
 ### v1.0.39
 - Nouveau système d'équipements enchantés à collectionner (variante brute / enchantée faible / enchantée forte par matériau)
 - Menu d'équipement repensé avec onglets par emplacement (Arme, Casque, Plastron, Jambières, Bottes, Flèches)
-- Teinte des pièces en cuir selon leur rareté
-- Détection des doublons à la roue basée sur la signature complète (matériau + enchantements)
+- Teinte des pièces en couleur selon leur rareté
+- Reconnaissance des doublons à la roue basée sur la signature complète (matériau + enchantements)
 - Rééquilibrage des récompenses de défis (points réduits, tickets réservés aux défis légendaires)
 - Correction de la gestion des cibles invalides des mobs alliés
 
@@ -42,116 +55,70 @@ Téléchargez la dernière version ici : **[Releases](https://github.com/herocra
 - Système de pouvoirs spéciaux optimisé
 - Optimisations générales des performances
 
-### v1.0.37
-- Ajout du système de niveaux avec progression par XP
-- Nouveau système de défis (quotidiens et globaux) avec récompenses
-- Améliorations de stabilité et corrections de bugs
-- Amélioration du système d'arène et de combat
-- Nouvelles flèches magiques avec effets supplémentaires
-- Système de pouvoirs spéciaux optimisé
-- Corrections et optimisations générales
-
 ---
 
 ## Fonctionnalités
 
 ### Fidélisation
-- **Connexion quotidienne** : série de jours consécutifs suivie automatiquement, avec distribution de
-  tickets (`tickets-par-jour` + bonus de palier définis dans `config.yml`). Un rappel s'affiche à
-  chaque connexion tant qu'il reste des tickets non utilisés.
-- **`/roue`** : consomme un ticket et donne une récompense de **chaque** catégorie à chaque lancer
-  (mob + bloc + équipement), affichées avec une mise en forme colorée selon la rareté et une petite
-  fanfare (son + titre à l'écran) pour les tirages épiques/légendaires. Le stuff de base (cuir/bois)
-  ne peut jamais s'obtenir sans enchantement.
+- **Connexion quotidienne** : série de jours consécutifs suivie automatiquement, avec distribution de tickets (`tickets-par-jour` + bonus de palier définis dans `config.yml`). Un rappel s'affiche à chaque connexion tant qu'il reste des tickets non utilisés.
+- **`/roue`** : consomme un ticket et donne une récompense de **chaque** catégorie à chaque lancer (mob + bloc + équipement + pouvoir), affichée avec une mise en forme colorée selon la rareté et une petite fanfare (son + titre à l'écran) pour les tirages épiques/légendaires. Le stuff de base (cuir/bois) ne peut jamais s'obtenir sans enchantement.
   - **Mob** : un allié ajouté **définitivement** à la collection (voir `/armee` et `/invoquer`).
   - **Bloc** : débloque un type de bloc cubique utilisable comme bloc de construction en arène.
   - **Équipement** : une pièce d'armure ou une épée (cuir → or → fer → diamant → netherite).
-- **`/streak`** : série actuelle et tickets disponibles.
-- **`/points [acheter]`** : points de fidélité PvP gagnés à chaque kill en arène
-  (`arene.points-par-kill`). `/points acheter` échange `arene.cout-ticket-points` points contre un
-  ticket de roue supplémentaire.
-- **`/acheterticket`** : envoie un lien cliquable vers la boutique en ligne pour acheter des tickets
-  de roue avec de l'argent réel (optionnel, voir section Boutique ci-dessous).
-- **`/armee`** : collection de mobs (`x2 Villager`, `x1 Zombie`...). La collection est **permanente** :
-  invoquer un mob ne le retire jamais, chaque unité possédée a juste besoin de "recharger" après usage.
-- **`/invoquer <mob>`** : fait apparaître une unité disponible du mob choisi comme allié en arène.
-  Système de recharge par unité : chaque exemplaire possédé ne peut être réutilisé qu'une fois par
-  heure (`arene.invocation-cooldown-secondes`), mais posséder plusieurs fois le même mob permet d'en
-  invoquer plusieurs simultanément (chacun a son propre temps de recharge indépendant). Un allié
-  n'attaque jamais son invocateur ni les alliés de celui-ci, et cible les autres joueurs à proximité.
+  - **Pouvoir** : un pouvoir spécial à collectionner et à utiliser en arène.
+- **`/streak`** : la série actuelle et les tickets disponibles.
+- **`/points [acheter]`** : points de fidélité gagnés à chaque kill en arène (`arene.points-par-kill`). `/points acheter` échange `arene.cout-ticket-points` points contre un ticket de roue supplémentaire.
+- **`/shop`** : la boutique des points de fidélité, pour acheter directement mobs, blocs, pouvoirs et équipement avec vos points gagnés en jeu.
+- **`/sacrifier <mobs|equipements|pouvoirs|blocs|tout> [confirmer]`** : sublimer une catégorie (ou toute votre collection) contre des points, en la remettant à zéro (irréversible).
+- **`/acheterticket`** : envoie un lien cliquable vers la boutique en ligne pour acheter des tickets de roue avec de l'argent réel (optionnel, voir section Boutique ci-dessous).
+- **`/armee`** : collection de mobs (`x2 Villager`, `x1 Zombie`...). La collection est **permanente** : invoquer un mob ne le retire jamais, chaque unité possédée a juste besoin de "charger" après usage.
+- **`/invoquer <mob>`** : fait apparaître une unité disponible du mob choisi comme allié en arène (coûte des points de fidélité proportionnels à sa rareté). Système de recharge par unité : chaque exemplaire possédé ne peut être réutilisé qu'une fois après le temps de recharge (`arene.invocation-cooldown-secondes`), mais posséder plusieurs fois le même mob permet d'en invoquer plusieurs simultanément (chacun a son propre temps de recharge indépendant). Un allié n'attaque jamais son invocateur ni les alliés de celui-ci, et cible les autres joueurs à proximité.
 - **`/bloc liste`** / **`/bloc choisir <type>`** : consulter et changer son bloc de construction actif.
-- **`/equipement liste`** / **`/equipement equiper <numéro>`** : consulter sa collection d'armures/épées
-  et choisir manuellement ce qui est porté (sinon la meilleure pièce obtenue s'équipe automatiquement).
+- **`/equipement liste`** / **`/equipement equiper <numéro>`** : consulter sa collection d'armures et d'épées et choisir manuellement ce qui est porté (sinon la meilleure pièce obtenue s'équipe automatiquement).
 
 ### Arène PvP
-- **`/arenepvp pos1`** et **`/arenepvp pos2`** *(admin, permission `loyaltymobs.admin`)* : définissent les
-  deux coins de la zone d'arène à partir du bloc regardé par l'administrateur. `/arenepvp info` affiche
-  la zone actuelle.
-- **Chute mortelle sous la zone** : tomber sous le niveau du sol de l'arène (via une brèche dans la
-  plateforme) tue instantanément — uniquement par en-dessous, une sortie latérale classique ne tue pas.
+- **`/arenepvp pos1`** et **`/arenepvp pos2`** *(admin, permission `loyaltymobs.admin`)* : définissent les deux coins de la zone d'arène à partir du bloc regardé par l'administrateur. `/arenepvp info` affiche la zone actuelle.
+- **Chute mortelle sous la zone** : tomber sous le niveau du sol de l'arène (via une brèche dans la plateforme) tue instantanément — uniquement par en-dessous, une sortie latérale classique ne tue pas.
 - **Dégâts de chute désactivés** à l'intérieur de la zone (hors chute mortelle ci-dessus).
-- **Casse de blocs interdite pour tout le monde sauf les admins** (`loyaltymobs.admin`), y compris ses
-  propres blocs de construction posés : ils ne disparaissent que via leur minuteur automatique.
-- **Blocs de construction en main secondaire (offhand)** : chaque joueur dispose d'un pack de 32 blocs
-  du type actif choisi via `/bloc choisir`, donnés dans l'offhand (utilisable automatiquement en même
-  temps que l'épée en main principale). Chaque bloc posé disparaît automatiquement après
-  `arene.duree-vie-bloc-secondes` (10s par défaut). Une charge se régénère toutes les
-  `arene.regen-bloc-secondes` (1s par défaut) jusqu'à revenir à 32.
-- **Kit PvP automatique** : à l'entrée dans la zone, le joueur passe en survie (son gamemode d'origine
-  est restauré à la sortie), reçoit une épée (1er slot de la hotbar, remplacée par la meilleure épée
-  débloquée) et un item d'invocation d'allié (2e slot — clic droit pour ouvrir un menu listant sa
-  collection et invoquer directement). Rien de tout ça ne peut être drop, déplacé dans l'inventaire, ni
-  perdu en cas de mort ; tout est retiré proprement à la sortie de la zone.
-- **Sidebar dédié**, visible uniquement dans la zone : points de fidélité, K/D (persistant), série de
-  kills (killstreak) en cours et top 5 des scores des joueurs actuellement dans l'arène.
-- **`/classement [retirer]`** *(admin)* : invoque à sa position un hologramme (armor stands, sans
-  dépendance externe) affichant le top 5 kills, top 5 morts et top 5 meilleurs K/D — s'actualise tout
-  seul à chaque mort en arène.
+- **Casse de blocs interdite pour tout le monde sauf les administrateurs** (`loyaltymobs.admin`), y compris ses propres blocs de construction posés : ils ne disparaissent que via leur minuteur automatique.
+- **Blocs de construction en main secondaire (offhand)** : chaque joueur dispose d'un pack de 32 blocs du type actif choisi via `/bloc choisir`, donnés dans l'offhand (utilisables automatiquement en même temps que l'épée en main principale). Chaque bloc posé disparaît automatiquement après `arene.duree-vie-bloc-secondes` (10 s par défaut). Une charge se régénère toutes les `arene.regen-bloc-secondes` (1 s par défaut) jusqu'à revenir à 32.
+- **Kit PvP automatique** : à l'entrée dans la zone, le joueur passe en survie (son gamemode d'origine est restauré à la sortie), reçoit une épée (1er slot de la hotbar, remplacée par la meilleure épée débloquée) et un item d'invocation d'allié (2e slot — clic droit pour ouvrir un menu listant sa collection et invoquer directement). Rien de tout ça ne peut être jeté, déplacé dans l'inventaire, ni perdu en cas de mort ; tout est retiré proprement à la sortie de la zone.
+- **Barre latérale (sidebar) dédiée**, visible uniquement dans la zone : points de fidélité, K/D (persistant), série de kills (killstreak) en cours et top 5 des scores des joueurs actuellement présents dans l'arène.
+- **Hologramme personnel** au-dessus de la tête de chaque joueur en arène, affichant ses statistiques (kills, morts, K/D, niveau, tickets disponibles...), visible **uniquement par lui**.
+- **`/classement [retirer]`** *(admin)* : invoque à sa position un hologramme (armor stands, sans dépendance externe) affichant le top 5 kills, top 5 morts et top 5 meilleurs K/D — s'actualise tout seul à chaque mort en arène.
 
-### Niveaux et Défis
-- **`/defi`** : ouvre le menu des défis avec les défis globaux et quotidiens
-- **`/defi quotidien`** : affiche les défis du jour avec leurs récompenses
-- Système de progression par niveaux avec XP gagnée en arène PvP
-- Récompenses spéciales pour les joueurs actifs
+### Économie & progression
+- **Points de fidélité** : gagnés à chaque kill en arène, utilisés pour acheter des tickets (`/points acheter`), invoquer des mobs (`/invoquer`), ou acheter directement des objets à la boutique (`/shop`).
+- **Sublimation (`/sacrifier`)** : convertissez des catégories de collection contre des points — vous remettez à zéro une catégorie pour pouvoir réinvestir vos gains ailleurs.
+- **Défis (`/defi`)** : défis quotidiens et globaux avec récompenses en points et en tickets.
+- Le prix des objets à la boutique et la valeur de leur sublimation suivent une logique de rareté cohérente, calibrée autour du coût d'un ticket.
 
 ### Boutique en argent réel (optionnelle)
-Achat de tickets de roue avec de l'argent réel, sur le même principe qu'un webshop classique (Stripe +
-MySQL partagé), désactivée par défaut (`boutique.enabled: false`). Voir `website-node/README.md` pour
-l'installation complète du micro-service, et `website-node/schema.sql` pour le schéma MySQL de
-référence. Une fois activée :
-- Le site web (voir `website-node/` + section "Tickets de roue" de `index.html`) vend des packs de
-  tickets (5 tickets = 1,99 €, 12 = 3,99 €, 30 = 7,99 € par défaut, modifiable en base sans
-  redéploiement) via Stripe Checkout.
-- Après paiement confirmé (webhook Stripe), le micro-service écrit une ligne dans la table MySQL
-  `pending_ticket_grants`.
-- Le plugin (`TicketSyncTask`) la lit toutes les `boutique.sync-interval-seconds` (15s par défaut),
-  crédite les tickets au joueur (même hors ligne) et le prévient s'il est connecté.
+Achat de tickets de roue avec de l'argent réel, sur le même principe qu'un magasin classique (Stripe + MySQL partagé), désactivée par défaut (`boutique.enabled: false`). Voir `website-node/README.md` pour l'installation complète du micro-service et `website-node/schema.sql` pour le schéma MySQL de référence. Une fois activée :
+- Le site web (voir `website-node/`) vend des packs de tickets (5 tickets = 1,99 €, 12 = 3,99 €, 30 = 7,99 € par défaut, modifiable en base sans redéploiement) via Stripe Checkout.
+- Après paiement confirmé (webhook Stripe), le micro-service écrit une ligne dans la table MySQL `pending_ticket_groups`.
+- Le plugin (`TicketSyncTask`) la lit toutes les `boutique.sync-interval-secondes` (15 s par défaut), crédite les tickets au joueur (même hors ligne) et le prévient s'il est connecté.
 - `/acheterticket` en jeu donne un lien cliquable direct vers la boutique.
 
-Aucune donnée de carte bancaire ne transite par le plugin ni par le micro-service : Stripe héberge
-lui-même la page de paiement.
+Aucune donnée de carte bancaire ne transite par le plugin ni par le micro-service : Stripe héberge lui-même la page de paiement.
 
 ## Compilation
 
-Projet Maven standard utilisant le dépôt PaperMC. Sur une machine avec Maven et un accès internet
-(pour télécharger `paper-api`, HikariCP et le driver MySQL) :
+Projet Maven standard utilisant le dépôt PaperMC. Sur une machine avec Maven et un accès internet (pour télécharger `paper-api`, HikariCP et le driver MySQL) :
 
 ```bash
 mvn clean package
 ```
 
-Le jar final (avec HikariCP/MySQL inclus et relocalisés) se trouve dans `target/LoyaltyMobs.jar`.
-Place-le dans `plugins/` sur un serveur Paper 1.21, démarre le serveur une fois pour générer
-`config.yml`, puis configure l'arène en jeu.
+Le jar final (avec HikariCP/MySQL inclus et relocalisés) se trouve dans `target/LoyaltyMobs.jar`. Place-le dans `plugins/` sur un serveur Paper 1.21, démarre le serveur une fois pour générer `config.yml`, puis configure l'arène en jeu.
 
 ## Mise en route de l'arène
 
-1. En tant qu'op, place-toi et regarde un bloc formant un premier coin de la zone souhaitée, puis
-   `/arenepvp pos1`.
+1. En tant qu'op, place-toi et regarde un bloc formant un premier coin de la zone souhaitée, puis `/arenepvp pos1`.
 2. Regarde le bloc opposé (l'autre coin), puis `/arenepvp pos2`.
 3. `/arenepvp info` pour vérifier les coordonnées enregistrées.
-4. La zone est immédiatement active : tout joueur qui y entre reçoit le kit PvP et le sidebar, tout
-   joueur qui en sort les perd.
+4. La zone est immédiatement active : tout joueur qui y entre reçoit le kit PvP et la sidebar, tout joueur qui en sort les perd.
+5. Vérifiez dans `config.yml` les paramètres de l'arène (points par kill, coût d'un ticket, temps de recharge des pouvoirs et des invocations) pour qu'ils correspondent à votre jeu.
 
 ## Configuration (`config.yml`)
 
@@ -167,8 +134,10 @@ arene:
   duree-vie-bloc-secondes: 10
   regen-bloc-secondes: 1
   invocation-cooldown-secondes: 3600
+  arc-cooldown-secondes: 3
+  pouvoir-cooldown-secondes: 300
   points-par-kill: 15
-  cout-ticket-points: 200
+  cout-ticket-points: 1500
 duree-vie-allie-secondes: 600
 
 # Boutique en argent réel (optionnelle) — voir website-node/README.md
@@ -188,19 +157,12 @@ mysql:
 
 ## Permissions
 
-- `loyaltymobs.use` (défaut : tous) — commandes joueur.
-- `loyaltymobs.admin` (défaut : op) — `/arenepvp`, `/classement`, et bypass des restrictions de
-  casse/pose dans la zone.
+- `loyaltymobs.use` (défaut : tous) — commandes du joueur.
+- `loyaltymobs.admin` (défaut : op) — `/arenepvp`, `/classement`, et bypass des restrictions de cassage/pose dans la zone.
 
 ## Limites connues / pistes d'amélioration
 
-- Les mobs invoqués passifs (vache, villageois...) suivent le joueur mais n'attaquent pas, faute d'IA
-  de combat native pour ces mobs — seuls les mobs normalement hostiles se battent réellement.
+- Les mobs invoqués passifs (vache, villageois...) suivent le joueur mais n'attaquent pas, faute d'IA de combat native pour ces mobs — seuls les mobs normalement hostiles se battent réellement.
 - Une seule arène à la fois (les coins sont stockés globalement, pas par nom d'arène).
-- `/roue`, `/armee`, `/equipement` sont en texte brut (hors menu d'invocation, qui utilise déjà une
-  interface par inventaire) ; une interface par inventaire généralisée serait plus confortable pour de
-  grosses collections.
-- Le top scores du sidebar n'affiche que les joueurs actuellement dans l'arène (scores de session,
-  éphémères) — le K/D et les points, eux, sont persistants.
-- La boutique en argent réel nécessite d'héberger soi-même le micro-service Node (`website-node/`) et
-  une base MySQL ; ce n'est pas un service clé en main.
+- Plusieurs commandes (`/roue`, `/armee`, `/equipement`) sont en texte brut (hors menus d'invocation, de boutique et de défis qui utilisent des interfaces par inventaire) ; une interface généralisée serait plus confortable pour les grosses collections.
+- La boutique en argent réel nécessite d'héberger soi-même le micro-service Node (`website-node/`) et une base MySQL ; ce n'est pas un service clé en main.

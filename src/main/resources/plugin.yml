@@ -1,9 +1,9 @@
 name: LoyaltyMobs
-version: '1.0.40'
+version: '1.0.41'
 main: fr.fidelmobs.LoyaltyMobsPlugin
 api-version: '1.21'
 author: Toi
-description: Fidelisation par connexions journalieres, roue de mobs/blocs/equipements a collectionner, et arene PvP.
+description: Plugin Paper 1.21 de fidelisation par connexions journalieres, roue de mobs/blocs/equipements/pouvoirs a collectionner, arene PvP, defis, boutique et systeme de points de fidelite.
 
 commands:
   streak:
@@ -38,6 +38,12 @@ commands:
   defi:
     description: Ouvre le menu des defis (achievements globaux et defis quotidiens) et leurs recompenses.
     usage: /defi [quotidien]
+  sacrifier:
+    description: Sacrifie une categorie (ou tout) de sa collection contre des points de fidelite.
+    usage: /sacrifier <mobs|equipements|pouvoirs|blocs|tout> [confirmer]
+  shop:
+    description: Ouvre la boutique pour acheter directement mobs, blocs, pouvoirs et equipement contre des points.
+    usage: /shop
   acheterticket:
     description: Donne un lien vers la boutique en ligne pour acheter des tickets de roue avec de l'argent reel.
     usage: /acheterticket

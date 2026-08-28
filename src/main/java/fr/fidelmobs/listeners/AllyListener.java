@@ -1,7 +1,7 @@
 package fr.fidelmobs.listeners;
 
-import fr.fidelmobs.LoyaltyMobsPlugin;
 import fr.fidelmobs.Cles;
+import fr.fidelmobs.LoyaltyMobsPlugin;
 import fr.fidelmobs.data.PlayerDataManager;
 import fr.fidelmobs.mobs.MobRarity;
 import fr.fidelmobs.mobs.MobRegistry;

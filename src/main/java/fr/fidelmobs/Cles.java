@@ -27,6 +27,12 @@ public final class Cles {
     public static final NamespacedKey EQUIPEMENT_PAGE_ACTION = new NamespacedKey("fidelmobs", "equipement_page_action");
     public static final NamespacedKey EQUIPEMENT_ONGLET_ACTION = new NamespacedKey("fidelmobs", "equipement_onglet_action");
 
+    // Boutique (/shop) : achat direct de mobs/blocs/pouvoirs/équipement contre des points
+    public static final NamespacedKey SHOP_CATEGORIE = new NamespacedKey("fidelmobs", "shop_categorie");
+    public static final NamespacedKey SHOP_ID = new NamespacedKey("fidelmobs", "shop_id");
+    public static final NamespacedKey SHOP_PAGE_ACTION = new NamespacedKey("fidelmobs", "shop_page_action");
+    public static final NamespacedKey SHOP_ONGLET_ACTION = new NamespacedKey("fidelmobs", "shop_onglet_action");
+
     // Flèches à effet (collection obtenue à la roue, équipables/tirables avec l'arc du kit)
     public static final NamespacedKey FLECHE_RARETE = new NamespacedKey("fidelmobs", "fleche_rarete");
     public static final NamespacedKey FLECHE_MARQUEUR = new NamespacedKey("fidelmobs", "fleche_marqueur");

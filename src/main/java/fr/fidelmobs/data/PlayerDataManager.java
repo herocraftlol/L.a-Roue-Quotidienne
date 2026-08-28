@@ -143,6 +143,12 @@ public class PlayerDataManager {
         return resultat;
     }
 
+    /** Réinitialise entièrement la collection de mobs (sacrifice) : plus aucun mob possédé. */
+    public void reinitialiserMobs(UUID uuid) {
+        get(uuid).set("mobs", null);
+        get(uuid).set("invocation_cooldowns", null);
+    }
+
     // ---- Blocs de construction débloqués (arène PvP) ----
 
     public Set<Material> getBlocsDebloques(UUID uuid) {
@@ -180,6 +186,12 @@ public class PlayerDataManager {
         get(uuid).set("bloc_actif", material.name());
     }
 
+    /** Réinitialise entièrement les blocs débloqués (sacrifice) : plus aucun bloc débloqué. */
+    public void reinitialiserBlocs(UUID uuid) {
+        get(uuid).set("blocs_debloques", null);
+        get(uuid).set("bloc_actif", null);
+    }
+
     // ---- Équipement PvP (collection d'objets obtenus à la roue) ----
 
     @SuppressWarnings("unchecked")
@@ -213,6 +225,15 @@ public class PlayerDataManager {
 
     public void setIndexEquipe(UUID uuid, EquipmentSlot slot, int index) {
         get(uuid).set(cheminEquipe(slot), index);
+    }
+
+    /**
+     * Réinitialise entièrement la collection d'équipement (sacrifice) : plus aucune arme ni
+     * armure possédée, tous les emplacements reviennent à l'objet de base (bois/cuir).
+     */
+    public void reinitialiserEquipements(UUID uuid) {
+        get(uuid).set("equipements", null);
+        get(uuid).set("equipe", null);
     }
 
     // ---- Flèches à effet (collection obtenue à la roue, tirables avec l'arc du kit) ----
@@ -285,6 +306,16 @@ public class PlayerDataManager {
 
     public void setPouvoirEquipe(UUID uuid, String id) {
         get(uuid).set("pouvoir_equipe", id);
+    }
+
+    /**
+     * Réinitialise entièrement la collection de pouvoirs (sacrifice) : plus aucun pouvoir
+     * possédé, aucun équipé, aucun temps de recharge en cours.
+     */
+    public void reinitialiserPouvoirs(UUID uuid) {
+        get(uuid).set("pouvoirs_possedes", null);
+        get(uuid).set("pouvoir_equipe", null);
+        get(uuid).set("pouvoir_cooldowns", null);
     }
 
     // ---- Cooldowns de pouvoirs (par pouvoir, sur le même principe que les cooldowns

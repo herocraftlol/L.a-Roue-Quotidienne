@@ -60,6 +60,11 @@ public final class BlockRegistry {
         return RARETE_PAR_BLOC.size();
     }
 
+    /** Tous les blocs obtenables avec leur rareté, dans l'ordre de déclaration. Utilisé par la boutique. */
+    public static Map<Material, MobRarity> getTousLesBlocs() {
+        return java.util.Collections.unmodifiableMap(RARETE_PAR_BLOC);
+    }
+
     /**
      * Tire un bloc au hasard en excluant, tant que c'est possible, les blocs déjà débloqués
      * par le joueur : la roue ne renvoie un doublon que si la collection est déjà complète.

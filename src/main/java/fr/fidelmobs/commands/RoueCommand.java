@@ -26,13 +26,13 @@ import java.util.stream.Collectors;
 
 public class RoueCommand implements CommandExecutor {
 
-    private static final String SEPARATEUR = "§8§m§l                                                            ";
     private static final Random RANDOM = new Random();
 
     // Délai (en ticks, 20 ticks = 1s) entre chaque étape de l'animation de révélation des
-    // récompenses. Volontairement allongé pour laisser au joueur le temps de lire le nom
-    // de la récompense et sa rareté avant que le titre suivant n'apparaisse.
-    private static final int DELAI_ENTRE_ETAPES = 50;
+    // récompenses au titre. Volontairement court : le titre ne montre plus que les
+    // nouveautés (voir Etape.nouveau), donc il y a déjà moins d'étapes à traverser — pas
+    // besoin d'un délai aussi long qu'avant pour rester lisible.
+    private static final int DELAI_ENTRE_ETAPES = 32;
 
     private final LoyaltyMobsPlugin plugin;
 
@@ -41,15 +41,16 @@ public class RoueCommand implements CommandExecutor {
     }
 
     /**
-     * Une étape de révélation animée : catégorie + nom coloré déjà formatés, un détail
-     * optionnel (enchantements pour l'équipement, effet pour les flèches) affiché en plus
-     * dans le titre de récompense, et rareté (son + intensité du titre).
+     * Une étape de révélation animée au titre : catégorie + nom coloré déjà formatés, un
+     * détail optionnel (enchantements pour l'équipement, effet pour les flèches), rareté
+     * (son + intensité du titre), et {@code nouveau} qui indique si c'est une vraie
+     * nouveauté (sinon l'étape n'est pas montrée au titre — voir animerRecompenses).
      */
-    private record Etape(String categorie, String nomAffiche, String detail, MobRarity rarete) {
+    private record Etape(String categorie, String nomAffiche, String detail, MobRarity rarete, boolean nouveau) {
     }
 
-    /** Résultat d'une catégorie de récompense : nom affiché + détail optionnel pour le titre. */
-    private record Resultat(String nom, String detail) {
+    /** Résultat d'une catégorie de récompense : nom + détail court + nouveauté, pour le chat ET le titre. */
+    private record Resultat(String nom, String detail, boolean nouveau) {
     }
 
     @Override
@@ -70,8 +71,6 @@ public class RoueCommand implements CommandExecutor {
         data.incrementerCompteurQuotidien(uuid, "roue_utilisee", 1);
 
         // ---- Phase 1 : tirage pur (sans effet de bord) de chaque catégorie ----
-        // Équipement/flèches : on exclut ce que le joueur possède déjà pour ne jamais lui
-        // donner deux fois exactement la même arme/armure ou la même flèche à effet.
         Set<String> signaturesGearPossedees = data.getEquipements(uuid).stream()
                 .map(GearRegistry::getSignature).collect(Collectors.toSet());
         Set<Integer> flechesDejaPossedees = data.getFleches(uuid).stream()
@@ -79,10 +78,6 @@ public class RoueCommand implements CommandExecutor {
 
         EntityType mob = MobRegistry.tirerMobAleatoire();
         Material bloc = BlockRegistry.tirerBlocAleatoire(data.getBlocsDebloques(uuid));
-        // equip/fleche peuvent être null : ça signifie que la collection est déjà complète
-        // à ce palier minimum. Dans ce cas on ne retombe JAMAIS sur un doublon réel : la
-        // rareté "nominale" sert juste à dimensionner le bonus de compensation (voir
-        // appliquerEquipement/appliquerFleche).
         ItemStack equip = tirerEquipementSansDoublon(0, signaturesGearPossedees);
         ItemStack fleche = tirerFlecheSansDoublon(0, flechesDejaPossedees);
         PowerRegistry.PowerDefinition pouvoir = PowerRegistry.tirerPouvoirAleatoire();
@@ -124,13 +119,8 @@ public class RoueCommand implements CommandExecutor {
             meilleure = meilleureRarete(rMob, rBloc, rEquip, rFleche, rPouvoir);
         }
 
-        player.sendMessage(" ");
-        player.sendMessage(SEPARATEUR);
-        player.sendMessage("      §b§l✦ ROUE DE LA FIDÉLITÉ ✦");
-        player.sendMessage(SEPARATEUR);
-        player.sendMessage(" ");
-
-        // ---- Phase 2 : application (mutation des données + messages de chat détaillés) ----
+        // ---- Phase 2 : application (mutation des données) + UNE ligne de chat par catégorie ----
+        player.sendMessage("§b§l✦ Roue §8— §7récompenses :");
         Resultat rMobRes = appliquerMob(player, data, uuid, mob, rMob);
         Resultat rBlocRes = appliquerBloc(player, data, uuid, bloc, rBloc);
         Resultat rEquipRes = appliquerEquipement(player, data, uuid, equip, rEquip);
@@ -138,59 +128,47 @@ public class RoueCommand implements CommandExecutor {
         Resultat rPouvoirRes = appliquerPouvoir(player, data, uuid, pouvoir, rPouvoir);
 
         List<Etape> etapes = new ArrayList<>();
-        etapes.add(new Etape("☠ Allié", rMobRes.nom(), rMobRes.detail(), rMob));
-        etapes.add(new Etape("▣ Bloc", rBlocRes.nom(), rBlocRes.detail(), rBloc));
-        etapes.add(new Etape("⚔ Équip", rEquipRes.nom(), rEquipRes.detail(), rEquip));
-        etapes.add(new Etape("➶ Flèche", rFlecheRes.nom(), rFlecheRes.detail(), rFleche));
-        etapes.add(new Etape("✪ Pouvoir", rPouvoirRes.nom(), rPouvoirRes.detail(), rPouvoir));
-
-        player.sendMessage(" ");
-        player.sendMessage(SEPARATEUR);
-        player.sendMessage(" ");
+        etapes.add(new Etape("☠ Allié", rMobRes.nom(), rMobRes.detail(), rMob, rMobRes.nouveau()));
+        etapes.add(new Etape("▣ Bloc", rBlocRes.nom(), rBlocRes.detail(), rBloc, rBlocRes.nouveau()));
+        etapes.add(new Etape("⚔ Équip", rEquipRes.nom(), rEquipRes.detail(), rEquip, rEquipRes.nouveau()));
+        etapes.add(new Etape("➶ Flèche", rFlecheRes.nom(), rFlecheRes.detail(), rFleche, rFlecheRes.nouveau()));
+        etapes.add(new Etape("✪ Pouvoir", rPouvoirRes.nom(), rPouvoirRes.detail(), rPouvoir, rPouvoirRes.nouveau()));
 
         data.save(uuid);
 
         // Si le joueur est déjà en arène et qu'une pièce d'équipement/flèche vient d'être
-        // équipée automatiquement (meilleure rareté), on rafraîchit immédiatement son kit
-        // pour qu'il puisse s'en servir tout de suite (flèche tirable en permanence dès
-        // qu'elle est équipée, arme/armure à jour) sans devoir ressortir/rentrer en arène.
+        // équipée automatiquement (meilleure rareté), on rafraîchit immédiatement son kit.
         if (plugin.getArenaProtectionListener().estDansArene(player)) {
             plugin.getKitManager().appliquerKit(player);
             player.updateInventory();
         }
 
-        // ---- Phase 3 : animation (titres + sons) révélant chaque récompense, puis fanfare finale ----
+        // ---- Phase 3 : titre animé, UNIQUEMENT pour les vraies nouveautés ----
         player.playSound(player.getLocation(), Sound.BLOCK_ENCHANTMENT_TABLE_USE, 0.8f, 1f);
-        player.sendTitle("§b§l✦ ROUE DE LA FIDÉLITÉ ✦", "§7Découverte des récompenses...", 8, 32, 10);
         animerRecompenses(player, etapes, meilleure);
 
         return true;
     }
 
     private Resultat appliquerMob(Player player, PlayerDataManager data, UUID uuid, EntityType mob, MobRarity rarete) {
+        int avant = data.getNombreMob(uuid, mob);
         data.ajouterMob(uuid, mob);
         String nom = nomLisible(mob.name());
-        afficherLigne(player, "☠ Allié", rarete.getCouleur() + "§l" + nom, rarete);
-        player.sendMessage("  §7Utilise §f/armee §7pour voir toute ta collection.");
-        return new Resultat(nom, null);
+        ligneCompacte(player, "☠", nom, rarete, null, avant == 0 ? "§anouveau" : "§7×" + (avant + 1));
+        return new Resultat(nom, null, avant == 0);
     }
 
     private Resultat appliquerBloc(Player player, PlayerDataManager data, UUID uuid, Material bloc, MobRarity rarete) {
         boolean nouveau = !data.getBlocsDebloques(uuid).contains(bloc);
         data.debloquerBloc(uuid, bloc);
         String nom = nomLisible(bloc.name());
-        afficherLigne(player, "▣ Bloc", rarete.getCouleur() + "§l" + nom, rarete);
-        if (nouveau) {
-            player.sendMessage("  §aNouveau bloc débloqué ! Utilise §f/bloc choisir " + bloc.name() + " §apour l'activer.");
-        } else {
-            player.sendMessage("  §7Tu possédais déjà ce bloc.");
-        }
-        return new Resultat(nom, null);
+        ligneCompacte(player, "▣", nom, rarete, null, nouveau ? "§anouveau" : "§7déjà possédé");
+        return new Resultat(nom, null, nouveau);
     }
 
     private Resultat appliquerEquipement(Player player, PlayerDataManager data, UUID uuid, ItemStack item, MobRarity rarete) {
         if (item == null) {
-            return appliquerBonusCollectionComplete(player, data, uuid, "⚔ Équip", rarete);
+            return appliquerBonusCollectionComplete(player, data, uuid, "⚔", rarete);
         }
 
         GearRegistry.TypeEquipement type = GearRegistry.getType(item);
@@ -198,125 +176,115 @@ public class RoueCommand implements CommandExecutor {
         int index = data.ajouterEquipement(uuid, item);
 
         String nom = item.getItemMeta().hasDisplayName() ? item.getItemMeta().getDisplayName() : item.getType().name();
-        afficherLigne(player, "⚔ Équip", "§l" + nom, rarete);
         String enchantements = GearRegistry.formatEnchantements(item);
-        if (enchantements != null) {
-            player.sendMessage("  §8✦ Enchantements : §f" + enchantements);
-        }
 
+        String suffixe = null;
         if (type != null) {
             int indexActuel = data.getIndexEquipe(uuid, type.slot);
             int rareteActuelle = indexActuel >= 0 && indexActuel < data.getEquipements(uuid).size()
                     ? GearRegistry.getRarete(data.getEquipements(uuid).get(indexActuel)) : -1;
-
             if (indexActuel < 0 || rareteIndex >= rareteActuelle) {
                 data.setIndexEquipe(uuid, type.slot, index);
-                player.sendMessage("  §aÉquipé automatiquement !");
-            } else {
-                player.sendMessage("  §7Utilise le menu d'équipement (arène) §7ou §f/equipement equiper §7pour le porter à la place.");
+                suffixe = "§aéquipé";
             }
         }
-        return new Resultat(nom, enchantements);
+        ligneCompacte(player, "⚔", nom, rarete, enchantements, suffixe);
+        return new Resultat(nom, enchantements, true);
     }
 
     private Resultat appliquerFleche(Player player, PlayerDataManager data, UUID uuid, ItemStack item, MobRarity rarete) {
         if (item == null) {
-            return appliquerBonusCollectionComplete(player, data, uuid, "➶ Flèche", rarete);
+            return appliquerBonusCollectionComplete(player, data, uuid, "➶", rarete);
         }
 
         int rareteIndex = rarete.ordinal();
         int index = data.ajouterFleche(uuid, item);
 
         String nom = item.getItemMeta().hasDisplayName() ? item.getItemMeta().getDisplayName() : item.getType().name();
-        afficherLigne(player, "➶ Flèche", "§l" + nom, rarete);
         String effet = ArrowRegistry.decrireEffet(item);
-        if (effet != null) {
-            player.sendMessage("  §8✦ " + effet);
-        }
 
         int indexActuel = data.getIndexFlecheEquipee(uuid);
         int rareteActuelle = indexActuel >= 0 && indexActuel < data.getFleches(uuid).size()
                 ? ArrowRegistry.getRarete(data.getFleches(uuid).get(indexActuel)) : -1;
 
+        String suffixe = null;
         if (indexActuel < 0 || rareteIndex >= rareteActuelle) {
             data.setIndexFlecheEquipee(uuid, index);
-            player.sendMessage("  §aÉquipée automatiquement !");
-        } else {
-            player.sendMessage("  §7Utilise le menu d'équipement (arène) §7pour la porter à la place.");
+            suffixe = "§aéquipée";
         }
-        return new Resultat(nom, effet);
+        ligneCompacte(player, "➶", nom, rarete, effet, suffixe);
+        return new Resultat(nom, effet, true);
     }
 
     /**
      * Utilisé quand la collection (équipement ou flèches) est déjà complète à ce palier
-     * minimum : plutôt que de rendre un doublon réel (une arme/armure/flèche que le joueur
-     * possède déjà), on convertit la récompense en points de fidélité, à la hauteur de la
-     * rareté qui aurait dû être tirée. Le joueur ne reçoit ainsi jamais deux fois exactement
-     * le même objet.
+     * minimum : plutôt que de rendre un doublon réel, on convertit la récompense en points
+     * de fidélité, à la hauteur de la rareté qui aurait dû être tirée. Ce n'est pas une
+     * nouveauté au sens du titre (pas d'objet réellement débloqué).
      */
     private Resultat appliquerBonusCollectionComplete(Player player, PlayerDataManager data, UUID uuid,
-                                                        String categorie, MobRarity rarete) {
+                                                        String icone, MobRarity rarete) {
         int points = 20 * (rarete.ordinal() + 1);
         data.ajouterPoints(uuid, points);
-
-        afficherLigne(player, categorie, rarete.getCouleur() + "§l" + points + " points", rarete);
-        player.sendMessage("  §7Collection déjà complète dans cette catégorie ! §a+" + points + " points de fidélité §7à la place.");
-        return new Resultat(points + " points", "collection complète");
+        ligneCompacte(player, icone, points + " points", rarete, null, "§7collection complète");
+        return new Resultat(points + " points", "collection complète", false);
     }
 
     private Resultat appliquerPouvoir(Player player, PlayerDataManager data, UUID uuid,
                                        PowerRegistry.PowerDefinition pouvoir, MobRarity rarete) {
         data.ajouterPouvoir(uuid, pouvoir.id());
 
-        afficherLigne(player, "✪ Pouvoir", rarete.getCouleur() + "§l" + pouvoir.nom(), rarete);
-        String effet = PowerRegistry.decrireEffet(pouvoir.id());
-        if (effet != null) {
-            player.sendMessage("  §8✦ " + effet);
-        }
-
         String actuel = data.getPouvoirEquipe(uuid);
         boolean deja = pouvoir.id().equals(actuel);
         int rareteActuelle = actuel != null ? PowerRegistry.getRarete(actuel).ordinal() : -1;
 
+        String suffixe;
         if (deja) {
-            player.sendMessage("  §7Tu possèdes maintenant une charge supplémentaire de ce pouvoir !");
+            suffixe = "§7+1 charge";
         } else if (actuel == null || rarete.ordinal() >= rareteActuelle) {
             data.setPouvoirEquipe(uuid, pouvoir.id());
-            player.sendMessage("  §aÉquipé automatiquement !");
+            suffixe = "§aéquipé";
         } else {
-            player.sendMessage("  §7Utilise le sélecteur de pouvoirs (arène, 6e slot) §7pour l'équiper à la place.");
+            suffixe = null;
         }
-        return new Resultat(pouvoir.nom(), null);
+        ligneCompacte(player, "✪", pouvoir.nom(), rarete, null, suffixe);
+        return new Resultat(pouvoir.nom(), null, !deja);
     }
 
     /**
      * Tire une pièce d'équipement/arme que le joueur ne possède pas encore (même matériau ET
-     * même niveau d'enchantement — une version enchantée d'un matériau déjà possédé "brut"
-     * reste une nouveauté valide). Renvoie {@code null} si toutes les combinaisons possibles
-     * à ce tier minimum sont déjà possédées (collection complète) : dans ce cas on ne rend
-     * JAMAIS un doublon (voir {@link #appliquerBonusCollectionComplete}).
+     * même niveau d'enchantement). Renvoie {@code null} si la collection est déjà complète
+     * à ce tier minimum : dans ce cas on ne rend JAMAIS un doublon.
      */
     private ItemStack tirerEquipementSansDoublon(int minTierOrdinal, Set<String> signaturesDejaPossedees) {
         return GearRegistry.genererObjetAleatoire(minTierOrdinal, signaturesDejaPossedees);
     }
 
     /**
-     * Tire une flèche à effet que le joueur ne possède pas encore (même palier de rareté).
-     * Renvoie {@code null} si tous les paliers possibles sont déjà possédés (collection
-     * complète), sans jamais retomber sur un doublon.
+     * Tire une flèche à effet que le joueur ne possède pas encore. Renvoie {@code null} si
+     * tous les paliers possibles sont déjà possédés (collection complète).
      */
     private ItemStack tirerFlecheSansDoublon(int minTierOrdinal, Set<Integer> tiersDejaPossedes) {
         return ArrowRegistry.genererFlecheAleatoire(minTierOrdinal, tiersDejaPossedes);
     }
 
     /**
-     * Ligne de récompense uniforme : puce et cadre colorés selon la rareté, pour que les
-     * meilleurs tirages sautent immédiatement aux yeux dans le chat.
+     * UNE seule ligne de chat compacte par récompense : icône+rareté, nom, détail court
+     * entre parenthèses s'il y en a un, et un petit suffixe de statut. Remplace l'ancien
+     * format qui pouvait prendre 2 à 4 lignes par catégorie (10 à 20 lignes au total).
      */
-    private void afficherLigne(Player player, String categorie, String nomColore, MobRarity rarete) {
+    private void ligneCompacte(Player player, String icone, String nom, MobRarity rarete, String detail, String suffixe) {
         String c = rarete.getCouleur();
-        player.sendMessage(c + "§l▸ " + "§8[" + c + categorie + "§8] " + nomColore
-                + " §8« " + c + rarete.getLabel() + "§8 »");
+        StringBuilder sb = new StringBuilder();
+        sb.append(c).append(icone).append(" §f").append(nom);
+        if (detail != null && !detail.isBlank()) {
+            sb.append(" §7(§8").append(detail).append("§7)");
+        }
+        sb.append(" §8[").append(c).append(rarete.getLabel()).append("§8]");
+        if (suffixe != null) {
+            sb.append(" §8- ").append(suffixe);
+        }
+        player.sendMessage(sb.toString());
     }
 
     private MobRarity meilleureRarete(MobRarity... raretes) {
@@ -328,31 +296,41 @@ public class RoueCommand implements CommandExecutor {
     }
 
     /**
-     * Anime la révélation des 4 récompenses l'une après l'autre (titre + son selon la rareté
-     * de chacune), puis termine sur une fanfare finale reprenant la meilleure rareté obtenue.
+     * Anime au titre UNIQUEMENT les récompenses qui sont de vraies nouveautés (voir
+     * Etape.nouveau) : un bloc déjà possédé, ou un bonus de points "collection complète",
+     * n'a pas besoin d'un titre plein écran — la ligne de chat suffit. Ça réduit
+     * automatiquement le nombre d'étapes (donc la durée totale de l'animation) sans avoir
+     * à changer le délai à chaque fois.
      */
     private void animerRecompenses(Player player, List<Etape> etapes, MobRarity meilleure) {
-        int delai = 35; // laisse le titre d'intro (phase 3) se terminer avant la première étape
-        for (Etape etape : etapes) {
+        List<Etape> nouveautes = etapes.stream().filter(Etape::nouveau).toList();
+
+        if (nouveautes.isEmpty()) {
+            // Rien de vraiment nouveau cette fois (que des doublons/bonus) : juste la
+            // fanfare finale, pas de titre par étape.
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                if (player.isOnline()) jouerFanfare(player, meilleure);
+            }, 5L);
+            return;
+        }
+
+        int delai = 3;
+        for (Etape etape : nouveautes) {
             plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
                 if (!player.isOnline()) return;
                 String base = etape.nomAffiche() + " §8« " + etape.rarete().getCouleur() + etape.rarete().getLabel() + "§8 »";
-                // Détail (enchantements pour l'équipement, effet pour les flèches) ajouté à
-                // la suite du sous-titre quand il y en a un, pour ne rien avoir à chercher
-                // dans le chat pendant l'animation.
                 String sousTitre = etape.detail() != null ? base + " §7— §f" + etape.detail() : base;
-                // fadeIn 5, stay 45 (2,25s), fadeOut 10 : bien plus lisible que l'ancien
-                // enchaînement rapide, surtout pour les noms de récompense les plus longs.
-                player.sendTitle(etape.rarete().getCouleur() + "§l" + etape.categorie(), sousTitre, 5, 45, 10);
+                // fadeIn 3, stay 28 (1,4s), fadeOut 6 : plus vif qu'avant, largement assez
+                // pour lire vu qu'il n'y a plus que les vraies nouveautés à afficher.
+                player.sendTitle(etape.rarete().getCouleur() + "§l" + etape.categorie(), sousTitre, 3, 28, 6);
                 jouerSonEtape(player, etape.rarete());
             }, delai);
             delai += DELAI_ENTRE_ETAPES;
         }
 
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            if (!player.isOnline()) return;
-            jouerFanfare(player, meilleure);
-        }, delai + 10);
+            if (player.isOnline()) jouerFanfare(player, meilleure);
+        }, delai + 6);
     }
 
     /**
@@ -376,11 +354,11 @@ public class RoueCommand implements CommandExecutor {
     private void jouerFanfare(Player player, MobRarity meilleure) {
         switch (meilleure) {
             case LEGENDAIRE -> {
-                player.sendTitle(meilleure.getCouleur() + "§l★ LÉGENDAIRE ★", "§eQuelle chance !", 8, 90, 20);
+                player.sendTitle(meilleure.getCouleur() + "§l★ LÉGENDAIRE ★", "§eQuelle chance !", 6, 60, 15);
                 player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
             }
             case EPIQUE -> {
-                player.sendTitle(meilleure.getCouleur() + "§l✦ Épique ✦", "", 8, 60, 15);
+                player.sendTitle(meilleure.getCouleur() + "§l✦ Épique ✦", "", 6, 45, 12);
                 player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1f, 0.8f);
             }
             case RARE -> player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.7f, 1.3f);
