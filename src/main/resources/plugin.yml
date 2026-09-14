@@ -1,9 +1,9 @@
 name: LoyaltyMobs
-version: '1.0.41'
+version: '1.0.42'
 main: fr.fidelmobs.LoyaltyMobsPlugin
 api-version: '1.21'
 author: Toi
-description: Plugin Paper 1.21 de fidelisation par connexions journalieres, roue de mobs/blocs/equipements/pouvoirs a collectionner, arene PvP, defis, boutique et systeme de points de fidelite.
+description: Plugin Paper 1.21 de fidelisation : connexions quotidiennes recompensees, roue de mobs/blocs/equipements/pouvoirs/fleches a collectionner, arene PvP configurable avec points de fidelite, defis, systeme de niveaux, sublimation, sacrifices, boutique en points et boutique en ligne (Stripe) optionnelle.
 
 commands:
   streak:

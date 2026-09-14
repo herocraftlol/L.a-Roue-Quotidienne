@@ -1,10 +1,10 @@
 # LoyaltyMobs
 
-![Version](https://img.shields.io/badge/Version-1.0.41-blue)
+![Version](https://img.shields.io/badge/Version-1.0.42-blue)
 ![Paper](https://img.shields.io/badge/Paper-1.21-green)
 ![Java](https://img.shields.io/badge/Java-21-orange)
 
-**LoyaltyMobs** est un plugin Minecraft Paper 1.21 qui transforme votre serveur en une véritable expérience de jeu collaborative. Fidélisez vos joueurs avec un système de **connexion quotidienne**, une **roue de la fortune** pour collectionner des mobs, des blocs, des équipements et des pouvoirs, le tout combiné à une **arène PvP** unique en son genre, avec une vraie économie de **points de fidélité**.
+**LoyaltyMobs** est un plugin Minecraft Paper 1.21 qui transforme votre serveur en une véritable expérience de jeu collaborative. Fidélisez vos joueurs avec un système de **connexion quotidienne**, une **roue de la fortune** pour collectionner des mobs, des blocs, des équipements, des pouvoirs et des flèches à effet, le tout combiné à une **arène PvP** unique en son genre, avec une vraie économie de **points de fidélité**, des **défis** journaliers et globaux, un **système de niveaux**, la **sublimation** de collection et une **boutique en ligne** (Stripe) totalement optionnelle.
 
 ## 📥 Télécharger
 
@@ -12,18 +12,27 @@ Téléchargez la dernière version ici : **[Releases](https://github.com/herocra
 
 Le fichier `.jar` compilé du plugin et le code source complet sont joints à chaque publication.
 
-## 🆕 Dernières nouveautés (v1.0.41)
+## 🆕 Dernières nouveautés (v1.0.42)
 
-- **🎯 `/shop` — Boutique de points de fidélité en jeu** : parcourez et achetez directement, contre vos points de fidélité, n'importe quel mob, bloc, pouvoir ou pièce d'équipement (version brute), avec onglets et pagination. Les versions enchantées restent exclusives à la roue.
-- **💠 `/sacrifier` — Le système de sublimation** : convertissez une catégorie (voire toute) votre collection en points de fidélité, à hauteur de sa rareté, avec confirmation obligatoire en deux temps (irréversible — 30 s). Idéal pour repartir à zéro et réinvestir ailleurs.
-- **📊 Hologramme personnel au-dessus de chaque joueur en arène** : nom, kills, morts, K/D, niveau et tickets disponibles, visible uniquement par le joueur concerné.
-- **🛡 Octroi d'alliés payant** : `/invoquer` coûte désormais des points de fidélité proportionnels à la puissance du mob, avec un retour clair du coût.
-- **Économie harmonisée** : prix de la boutique et valeur de sublimation calés sur le coût d'un ticket de roue, pour un rapport logique et cohérent (la roue reste la source la plus rentable).
-- **Compatibilité Paper 1.21** : corrections d'API (attributs, flags d'items) et optimisations de code.
+Cette version est une **mise à jour de compatibilité** avec les dernières évolutions de l'API Paper 1.21 et corrige plusieurs erreurs de compilation apparues avec les snapshots récents du greffon Paper. Aucun changement de gameplay : il s'agit uniquement de garder le plugin opérationnel et compilable sur les dernières builds de Paper 1.21.
+
+- **🛠 Correction de l'API Paper 1.21.1+** : remplacement de `Attribute.MAX_HEALTH` par `Attribute.GENERIC_MAX_HEALTH` (attributs unifiés depuis la 1.21.2) dans `PowerRegistry` — corrige le crash au chargement du plugin sur les versions récentes.
+- **🏷️ Correction des `ItemFlag`** : `HIDE_POTION_EFFECTS` est devenu `HIDE_ADDITIONAL_TOOLTIP` dans Paper 1.20.5+, désormais appliqué dans `ArrowRegistry` pour les flèches à effet de la collection.
+- **🔧 Compilation propre** : import manquant de `fr.fidelmobs.Cles` ajouté dans `AllyListener`, et variables locales rendues effectivement finales dans les lambdas de `BlockRegistry` et `MobRegistry` — le projet compile désormais sans patch local ni warning.
+- **📝 `plugin.yml` enrichi** : description courte affichée côté client Minecraft mise à jour pour refléter toutes les fonctionnalités (roue, pouvoirs, flèches, arène, défis, niveaux, sublimation, boutique en points et boutique en ligne).
+- **🔢 Version bumpée** : `pom.xml` et `plugin.yml` alignés sur `1.0.42` pour correspondre à la release.
 
 ---
 
 ## 📜 Changelog
+
+### v1.0.42
+- Correction de `Attribute.MAX_HEALTH` → `GENERIC_MAX_HEALTH` (Paper 1.21.1+) dans `PowerRegistry`
+- Correction de `ItemFlag.HIDE_POTION_EFFECTS` → `HIDE_ADDITIONAL_TOOLTIP` (Paper 1.20.5+) dans `ArrowRegistry`
+- Import manquant de `fr.fidelmobs.Cles` ajouté dans `AllyListener`
+- Variables locales rendues effectivement finales pour les lambdas de `BlockRegistry` et `MobRegistry`
+- Description courte du `plugin.yml` mise à jour pour refléter toutes les fonctionnalités
+- Version bumpée à `1.0.42` dans `pom.xml` et `plugin.yml`
 
 ### v1.0.41
 - Nouvelle boutique `/shop` : achat direct de mobs, blocs, pouvoirs et équipements bruts contre des points de fidélité
