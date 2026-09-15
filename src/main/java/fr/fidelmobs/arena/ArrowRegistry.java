@@ -56,22 +56,22 @@ public final class ArrowRegistry {
             // ---- RARE (tier 2) : combos plus marqués ----
             new Modele(5, 2, "Flèche empoisonnée", List.of(
                     new PotionEffect(PotionEffectType.POISON, 100, 1))), // 5s, Poison II
-            new Modele(6, 2, "Flèche aveuglante", List.of(
-                    new PotionEffect(PotionEffectType.BLINDNESS, 100, 0),
+            new Modele(6, 2, "Flèche affamante", List.of(
+                    new PotionEffect(PotionEffectType.HUNGER, 100, 2),
                     new PotionEffect(PotionEffectType.SLOWNESS, 60, 0))),
             new Modele(7, 2, "Flèche engourdissante", List.of(
                     new PotionEffect(PotionEffectType.SLOWNESS, 120, 2))), // 6s, Lenteur III, mono-effet mais fort
 
             // ---- ÉPIQUE (tier 3) : très handicapant ----
-            new Modele(8, 3, "Flèche affaiblissante", List.of(
-                    new PotionEffect(PotionEffectType.SLOWNESS, 140, 1),
-                    new PotionEffect(PotionEffectType.WEAKNESS, 140, 1))),
+            new Modele(8, 3, "Flèche rongeuse", List.of(
+                    new PotionEffect(PotionEffectType.WITHER, 100, 0),
+                    new PotionEffect(PotionEffectType.SLOWNESS, 100, 1))),
             new Modele(9, 3, "Flèche toxique", List.of(
                     new PotionEffect(PotionEffectType.POISON, 120, 2),
                     new PotionEffect(PotionEffectType.NAUSEA, 100, 1))),
-            new Modele(10, 3, "Flèche brisante", List.of(
-                    new PotionEffect(PotionEffectType.WEAKNESS, 160, 2),
-                    new PotionEffect(PotionEffectType.SLOWNESS, 100, 1))),
+            new Modele(10, 3, "Flèche étourdissante", List.of(
+                    new PotionEffect(PotionEffectType.SLOWNESS, 120, 2),
+                    new PotionEffect(PotionEffectType.NAUSEA, 100, 1))),
 
             // ---- LÉGENDAIRE (tier 4) : les plus dévastatrices ----
             new Modele(11, 4, "Flèche foudroyante", List.of(
@@ -81,10 +81,10 @@ public final class ArrowRegistry {
                     new PotionEffect(PotionEffectType.INSTANT_DAMAGE, 1, 0),
                     new PotionEffect(PotionEffectType.POISON, 140, 2),
                     new PotionEffect(PotionEffectType.SLOWNESS, 100, 1))),
-            new Modele(13, 4, "Flèche du néant", List.of(
-                    new PotionEffect(PotionEffectType.SLOWNESS, 160, 3),
-                    new PotionEffect(PotionEffectType.WEAKNESS, 160, 2),
-                    new PotionEffect(PotionEffectType.BLINDNESS, 100, 0))),
+            new Modele(13, 4, "Flèche cataclysmique", List.of(
+                    new PotionEffect(PotionEffectType.WITHER, 140, 1),
+                    new PotionEffect(PotionEffectType.POISON, 140, 1),
+                    new PotionEffect(PotionEffectType.SLOWNESS, 100, 2))),
     };
 
     private ArrowRegistry() {
@@ -244,6 +244,23 @@ public final class ArrowRegistry {
         return item.getItemMeta().getPersistentDataContainer().has(Cles.FLECHE_MARQUEUR, PersistentDataType.BYTE);
     }
 
+    /**
+     * Vrai si cette flèche inflige Cécité ou Faiblesse — effets retirés du jeu (jugés trop
+     * frustrants en PvP). Utilisé pour purger les flèches déjà obtenues par les joueurs
+     * avant ce changement (voir PlayerDataManager#purgerFlechesInterdites).
+     */
+    public static boolean infligeEffetInterdit(ItemStack item) {
+        if (item == null || !item.hasItemMeta() || !(item.getItemMeta() instanceof PotionMeta potionMeta)) {
+            return false;
+        }
+        for (PotionEffect effet : potionMeta.getCustomEffects()) {
+            if (effet.getType().equals(PotionEffectType.BLINDNESS) || effet.getType().equals(PotionEffectType.WEAKNESS)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Nombre total de modèles de flèche distincts obtenables, utilisé par le système de défis. */
     public static int getNombreModelesTotal() {
         return MODELES.length;
@@ -275,6 +292,8 @@ public final class ArrowRegistry {
         if (type.equals(PotionEffectType.NAUSEA)) return "Nausée";
         if (type.equals(PotionEffectType.BLINDNESS)) return "Cécité";
         if (type.equals(PotionEffectType.INSTANT_DAMAGE)) return "Dégâts instantanés";
+        if (type.equals(PotionEffectType.WITHER)) return "Dépérissement";
+        if (type.equals(PotionEffectType.HUNGER)) return "Faim";
         String brut = type.getKey().getKey().toLowerCase().replace('_', ' ');
         return brut.substring(0, 1).toUpperCase() + brut.substring(1);
     }

@@ -8,6 +8,7 @@ import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LightningStrike;
 import org.bukkit.entity.LivingEntity;
@@ -19,6 +20,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 
@@ -561,6 +563,122 @@ public final class PowerRegistry {
                     joueur.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 200, 1));
                     joueur.getWorld().playSound(joueur.getLocation(), Sound.ITEM_TOTEM_USE, 1f, 1f);
                     joueur.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, joueur.getLocation().add(0, 1, 0), 80, 0.4, 0.8, 0.4, 0.3);
+                });
+
+        // ---- Lot 3 : tour éphémère (mobilité/couverture) et vraie immobilisation ----
+
+        enregistrer("tour_ephemere", "Tour éphémère", MobRarity.RARE, Material.SCAFFOLDING,
+                List.of("§7Fait apparaître une tour d'échafaudage de 8 blocs sous toi,",
+                        "§7qui s'effondre toute seule après 2 minutes."),
+                (plugin, joueur) -> {
+                    Location pieds = joueur.getLocation().getBlock().getLocation();
+                    int hauteurMax = 8;
+                    List<Block> blocsPoses = new ArrayList<>();
+                    List<Material> materiauxOriginaux = new ArrayList<>();
+
+                    for (int i = 0; i < hauteurMax; i++) {
+                        Block bloc = pieds.clone().add(0, i, 0).getBlock();
+                        // S'arrête net si ça rencontre un obstacle déjà solide (plafond, mur...) :
+                        // on ne remplace jamais un bloc qui n'est pas de l'air.
+                        if (!bloc.getType().isAir()) break;
+                        materiauxOriginaux.add(bloc.getType());
+                        bloc.setType(Material.SCAFFOLDING, false);
+                        blocsPoses.add(bloc);
+                    }
+
+                    if (blocsPoses.isEmpty()) {
+                        joueur.sendMessage("§cPas assez de place au-dessus de toi pour ériger une tour.");
+                        return;
+                    }
+
+                    joueur.getWorld().playSound(joueur.getLocation(), Sound.BLOCK_SCAFFOLDING_PLACE, 1f, 1f);
+
+                    plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                        for (int i = 0; i < blocsPoses.size(); i++) {
+                            Block bloc = blocsPoses.get(i);
+                            // Ne remet en place que ce qui est encore de l'échafaudage : si le
+                            // joueur (ou un adversaire) l'a détruit entre-temps, ou qu'un bloc de
+                            // construction a été posé au même endroit depuis, on n'y touche pas.
+                            if (bloc.getType() == Material.SCAFFOLDING) {
+                                bloc.setType(materiauxOriginaux.get(i), false);
+                            }
+                        }
+                    }, 2400L); // 2 minutes
+                });
+
+        enregistrer("immobilisation", "Immobilisation", MobRarity.EPIQUE, Material.COBWEB,
+                List.of("§7Immobilise TOTALEMENT (plus aucun déplacement possible) le joueur",
+                        "§7ou mob adverse visé pendant 4 secondes."),
+                (plugin, joueur) -> {
+                    LivingEntity cible = ciblerVivant(plugin, joueur, 15);
+                    if (cible == null) {
+                        joueur.sendMessage("§cAucune cible visée.");
+                        return;
+                    }
+
+                    Location ancre = cible.getLocation().clone();
+                    cible.setVelocity(new Vector(0, 0, 0));
+                    cible.getWorld().playSound(cible.getLocation(), Sound.BLOCK_CHAIN_PLACE, 1f, 0.6f);
+                    cible.getWorld().spawnParticle(Particle.ITEM_SNOWBALL, cible.getLocation().add(0, 1, 0), 30, 0.3, 0.5, 0.3, 0);
+
+                    // Contrairement à un simple effet de Lenteur (qui laisse encore un peu de
+                    // déplacement), on ancre ici la position exacte de la cible et on la
+                    // reteleporte dessus à chaque fois qu'elle bouge, pendant 4 secondes
+                    // complètes : un vrai blocage, pas juste un ralentissement. Elle garde le
+                    // droit de tourner la tête (le regard de la caméra n'est pas figé).
+                    new BukkitRunnable() {
+                        int ticksRestants = 80; // 4 secondes
+
+                        @Override
+                        public void run() {
+                            if (ticksRestants <= 0 || cible.isDead() || !cible.isValid()) {
+                                cancel();
+                                return;
+                            }
+                            Location actuelle = cible.getLocation();
+                            if (actuelle.getX() != ancre.getX() || actuelle.getY() != ancre.getY() || actuelle.getZ() != ancre.getZ()) {
+                                Location correction = ancre.clone();
+                                correction.setYaw(actuelle.getYaw());
+                                correction.setPitch(actuelle.getPitch());
+                                cible.teleport(correction);
+                            }
+                            cible.setVelocity(new Vector(0, 0, 0));
+                            ticksRestants -= 2;
+                        }
+                    }.runTaskTimer(plugin, 0L, 2L);
+                });
+
+        enregistrer("telekinesie", "Télékinésie", MobRarity.EPIQUE, Material.SHULKER_SHELL,
+                List.of("§7Saisit le joueur ou mob adverse visé et le maintient en",
+                        "§7suspension devant toi pendant 5 secondes : il suit ton regard."),
+                (plugin, joueur) -> {
+                    LivingEntity cible = ciblerVivant(plugin, joueur, 12);
+                    if (cible == null) {
+                        joueur.sendMessage("§cAucune cible visée.");
+                        return;
+                    }
+
+                    cible.setGravity(false);
+                    cible.getWorld().playSound(cible.getLocation(), Sound.ENTITY_ILLUSIONER_CAST_SPELL, 1f, 1f);
+                    cible.getWorld().spawnParticle(Particle.PORTAL, cible.getLocation().add(0, 1, 0), 30, 0.3, 0.5, 0.3, 0.2);
+
+                    new BukkitRunnable() {
+                        int ticksRestants = 100; // 5 secondes
+
+                        @Override
+                        public void run() {
+                            if (ticksRestants <= 0 || cible.isDead() || !cible.isValid() || !joueur.isOnline()) {
+                                if (cible.isValid()) cible.setGravity(true);
+                                cancel();
+                                return;
+                            }
+                            Vector devant = joueur.getEyeLocation().getDirection().normalize().multiply(4.0);
+                            Location cibleLoc = joueur.getEyeLocation().add(devant);
+                            cible.teleport(cibleLoc);
+                            cible.setVelocity(new Vector(0, 0, 0));
+                            ticksRestants -= 2;
+                        }
+                    }.runTaskTimer(plugin, 0L, 2L);
                 });
     }
 

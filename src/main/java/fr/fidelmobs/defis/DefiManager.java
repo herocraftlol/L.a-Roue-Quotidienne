@@ -136,8 +136,11 @@ public class DefiManager {
         String suffixeTickets = defi.recompenseTickets() > 0
                 ? " §7et §e+" + defi.recompenseTickets() + " ticket(s)"
                 : "";
-        player.sendMessage(defi.rarete().getCouleur() + "✦ Récompense récupérée : §l" + defi.nom()
-                + "§r §7— §a+" + defi.recompensePoints() + " points" + suffixeTickets);
+        // Les noms de défis sont désormais littéraux ("Poser 50 blocs", "Éliminer 100
+        // joueurs"...), donc ce message se lit comme une vraie phrase qui dit ce qui a été
+        // fait, pas juste un nom thématique suivi d'un chiffre.
+        player.sendMessage(defi.rarete().getCouleur() + "✦ Défi accompli : §l" + defi.nom()
+                + "§r §7→ §a+" + defi.recompensePoints() + " points" + suffixeTickets);
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 1.4f);
 
         // Réaffiche le menu à la même page pour montrer l'icône fraîchement marquée récupérée.

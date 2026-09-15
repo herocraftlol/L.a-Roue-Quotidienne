@@ -700,6 +700,14 @@ public class ArenaProtectionListener implements Listener {
         // Les hologrammes personnels de stats des autres joueurs déjà en arène ne doivent
         // jamais être visibles par ce nouveau venu.
         plugin.getPersonalHologramManager().masquerPourNouveauJoueur(event.getPlayer());
+
+        // Migration : retire les flèches Cécité/Faiblesse éventuellement déjà obtenues
+        // avant que ces effets ne soient retirés du jeu, en compensant par des points.
+        int compense = plugin.getPlayerDataManager().purgerFlechesInterdites(event.getPlayer().getUniqueId());
+        if (compense > 0) {
+            event.getPlayer().sendMessage("§7Les flèches à effet Cécité/Faiblesse ont été retirées du jeu : "
+                    + "§a+" + compense + " points de fidélité §7en compensation.");
+        }
     }
 
     @EventHandler

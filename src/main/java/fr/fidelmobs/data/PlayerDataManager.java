@@ -267,6 +267,50 @@ public class PlayerDataManager {
         get(uuid).set("fleche_equipee", index);
     }
 
+    /**
+     * Retire toute flèche déjà obtenue qui inflige Cécité ou Faiblesse (effets retirés du
+     * jeu — voir ArrowRegistry#infligeEffetInterdit), et compense chacune par des points de
+     * fidélité proportionnels à sa rareté. Recale l'index de la flèche équipée si besoin
+     * (une flèche retirée avant elle dans la liste décale les indices suivants). Ne fait
+     * rien et renvoie 0 si le joueur n'a aucune flèche concernée. Appelée automatiquement à
+     * la connexion (voir ArenaProtectionListener#onConnexion).
+     */
+    public int purgerFlechesInterdites(UUID uuid) {
+        List<ItemStack> actuelles = getFleches(uuid);
+        int indexEquipeActuel = getIndexFlecheEquipee(uuid);
+
+        boolean auMoinsUne = false;
+        for (ItemStack item : actuelles) {
+            if (fr.fidelmobs.arena.ArrowRegistry.infligeEffetInterdit(item)) {
+                auMoinsUne = true;
+                break;
+            }
+        }
+        if (!auMoinsUne) return 0;
+
+        List<ItemStack> conservees = new ArrayList<>();
+        int nouvelIndexEquipe = -1;
+        int pointsCompenses = 0;
+        for (int i = 0; i < actuelles.size(); i++) {
+            ItemStack item = actuelles.get(i);
+            if (fr.fidelmobs.arena.ArrowRegistry.infligeEffetInterdit(item)) {
+                int tier = fr.fidelmobs.arena.ArrowRegistry.getRarete(item);
+                pointsCompenses += 20 * (tier + 1);
+                continue;
+            }
+            if (i == indexEquipeActuel) {
+                nouvelIndexEquipe = conservees.size();
+            }
+            conservees.add(item);
+        }
+
+        get(uuid).set("fleches", conservees);
+        setIndexFlecheEquipee(uuid, nouvelIndexEquipe);
+        ajouterPoints(uuid, pointsCompenses);
+        save(uuid);
+        return pointsCompenses;
+    }
+
     // ---- Pouvoirs spéciaux (collection obtenue à la roue, catégorie "Pouvoir") ----
     // Système de charges par pouvoir (comme les mobs invoqués) : si un pouvoir est obtenu
     // plusieurs fois, il peut être réutilisé autant de fois que de copies possédées avant
@@ -472,13 +516,26 @@ public class PlayerDataManager {
     }
 
     public void ajouterPoints(UUID uuid, int montant) {
-        get(uuid).set("points", getPoints(uuid) + montant);
+        int avant = getPoints(uuid);
+        get(uuid).set("points", avant + montant);
         // Compteurs dédiés au système de défis : contrairement au solde de points (qui
         // peut être dépensé), ces compteurs ne font qu'augmenter, donc utilisables comme
         // objectif de progression fiable ("gagner X points au total").
         if (montant > 0) {
             incrementerCompteur(uuid, "points_gagnes_total", montant);
             incrementerCompteurQuotidien(uuid, "points_gagnes", montant);
+        }
+
+        // Prévient le joueur dès qu'il vient de franchir le seuil d'un ticket de roue
+        // supplémentaire (par défaut 1500 points), pour qu'il pense à /points acheter au
+        // lieu de laisser ses points dormir sans savoir qu'il peut déjà les échanger.
+        int apres = avant + montant;
+        int coutTicket = plugin.getConfig().getInt("arene.cout-ticket-points", 1500);
+        if (montant > 0 && coutTicket > 0 && avant / coutTicket < apres / coutTicket) {
+            org.bukkit.entity.Player joueur = plugin.getServer().getPlayer(uuid);
+            if (joueur != null) {
+                joueur.sendMessage("§d✦ Tu as assez de points pour un ticket de roue ! Tape §f/points acheter §dpour l'échanger.");
+            }
         }
     }
 

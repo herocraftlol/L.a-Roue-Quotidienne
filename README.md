@@ -1,6 +1,6 @@
 # LoyaltyMobs
 
-![Version](https://img.shields.io/badge/Version-1.0.42-blue)
+![Version](https://img.shields.io/badge/Version-1.0.43-blue)
 ![Paper](https://img.shields.io/badge/Paper-1.21-green)
 ![Java](https://img.shields.io/badge/Java-21-orange)
 
@@ -12,19 +12,34 @@ Téléchargez la dernière version ici : **[Releases](https://github.com/herocra
 
 Le fichier `.jar` compilé du plugin et le code source complet sont joints à chaque publication.
 
-## 🆕 Dernières nouveautés (v1.0.42)
+## 🆕 Dernières nouveautés (v1.0.43)
 
-Cette version est une **mise à jour de compatibilité** avec les dernières évolutions de l'API Paper 1.21 et corrige plusieurs erreurs de compilation apparues avec les snapshots récents du greffon Paper. Aucun changement de gameplay : il s'agit uniquement de garder le plugin opérationnel et compilable sur les dernières builds de Paper 1.21.
+Cette version **enrichit considérablement** le contenu de l'arène PvP : deux nouveaux pouvoirs (tour d'échafaudage éphémère et immobilisation totale), un **rééquilibrage complet des flèches à effet** (les effets Cécité et Faiblesse, jugés trop frustrants en PvP, sont retirés et remplacés par des variantes plus lisibles), une **IA du dragon allié** simplifiée et plus robuste, un **système de purge automatique** des anciennes flèches interdites avec compensation en points, ainsi que des **défis** dont les noms indiquent désormais littéralement ce qu'il faut faire.
 
-- **🛠 Correction de l'API Paper 1.21.1+** : remplacement de `Attribute.MAX_HEALTH` par `Attribute.GENERIC_MAX_HEALTH` (attributs unifiés depuis la 1.21.2) dans `PowerRegistry` — corrige le crash au chargement du plugin sur les versions récentes.
-- **🏷️ Correction des `ItemFlag`** : `HIDE_POTION_EFFECTS` est devenu `HIDE_ADDITIONAL_TOOLTIP` dans Paper 1.20.5+, désormais appliqué dans `ArrowRegistry` pour les flèches à effet de la collection.
-- **🔧 Compilation propre** : import manquant de `fr.fidelmobs.Cles` ajouté dans `AllyListener`, et variables locales rendues effectivement finales dans les lambdas de `BlockRegistry` et `MobRegistry` — le projet compile désormais sans patch local ni warning.
-- **📝 `plugin.yml` enrichi** : description courte affichée côté client Minecraft mise à jour pour refléter toutes les fonctionnalités (roue, pouvoirs, flèches, arène, défis, niveaux, sublimation, boutique en points et boutique en ligne).
-- **🔢 Version bumpée** : `pom.xml` et `plugin.yml` alignés sur `1.0.42` pour correspondre à la release.
+- **🗼 Nouveau pouvoir : Tour éphémère** *(rare)* — fait apparaître une tour d'échafaudage de 8 blocs sous toi, qui s'effondre automatiquement après 2 minutes. Parfait pour prendre de la hauteur ou fuir un combat. S'arrête proprement si un obstacle bloque la construction.
+- **🕸️ Nouveau pouvoir : Immobilisation** *(épique)* — immobilise **totalement** la cible (joueur ou mob adverse le plus proche) pendant 4 secondes. Plus aucun déplacement possible, idéal pour annihiler une charge ou une fuite.
+- **🏹 Flèches à effet rééquilibrées** : les flèches Cécité/Faiblesse sont **retirées du jeu** (trop frustrantes en PvP) et remplacées par de nouvelles variantes plus lisibles — *Flèche affamante* (Faim), *Flèche rongeuse* (Wither), *Flèche étourdissante* (Nausée), *Flèche cataclysmique* (Wither + Poison), *Flèche empoisonnée* (Poison), *Flèche toxique* (Poison + Nausée).
+- **🧹 Migration automatique des anciennes flèches** : à chaque connexion, les flèches Cécité/Faiblesse encore en possession d'un joueur sont **retirées et compensées** en points de fidélité (20 × tier de la flèche). Le joueur est prévenu en jeu avec le montant compensé.
+- **🐉 IA du dragon allié simplifiée** : le dragon fonce désormais droit sur sa cible, mord à portée (toujours 1,5 s de cooldown entre deux morsures) et la tête reste en permanence tournée vers elle. Beaucoup plus robuste : plus de risque de plantage sur vecteur nul ou de blocage dans le décor près du sol.
+- **📍 Position d'invocation corrigée** (`SpawnUtils`) : un mob invoqué trouve désormais une vraie surface solide (2 blocs d'air libres au-dessus) au lieu de simplement vérifier le bloc sous les pieds — fini les mobs encastrés sur pente ou en bordure d'arène.
+- **🎯 Alerte de seuil de points** : dès que tu franchis un multiple du coût d'un ticket (`arene.cout-ticket-points`), un message te rappelle que tu peux `/points acheter` pour l'échanger contre un ticket de roue.
+- **📜 Défis aux noms littéraux** : tous les défis indiquent désormais littéralement ce qu'il faut faire (« Éliminer 50 joueurs », « Poser 50 blocs », « Se connecter 14 jours d'affilée »...) au lieu de titres thématiques — beaucoup plus clair d'un coup d'œil.
+- **🛠 Compilation propre** : Paper API 1.21.1+ (attributs unifiés et item flags modernisés), import `fr.fidelmobs.Cles` correctement référencé, lambdas sans warning.
 
 ---
 
 ## 📜 Changelog
+
+### v1.0.43
+- **Nouveau pouvoir** : Tour éphémère (rare) — tour d'échafaudage de 8 blocs, s'effondre après 2 min
+- **Nouveau pouvoir** : Immobilisation (épique) — cible totalement immobilisée pendant 4 s
+- **Flèches rééquilibrées** : suppression des flèches Cécité et Faiblesse, remplacées par Faim / Wither / Nausée / Poison
+- **Migration automatique** : les flèches Cécité/Faiblesse restantes en collection sont purgées à la connexion et remplacées par des points de fidélité
+- **Dragon allié** : IA simplifiée (vol droit vers la cible + morsure à portée, 1,5 s de cooldown), beaucoup plus robuste
+- **SpawnUtils** : recherche d'une vraie surface solide avec 2 blocs d'air libres, au lieu d'un simple contrôle sous les pieds
+- **Alerte de seuil de points** : notification automatique dès qu'on peut acheter un ticket avec ses points
+- **Défis** : noms désormais littéraux (« Éliminer X joueurs » au lieu de titres thématiques)
+- **Compilation Paper 1.21.1+** : `Attribute.GENERIC_MAX_HEALTH`, `ItemFlag.HIDE_ADDITIONAL_TOOLTIP`, import `Cles` ajouté
 
 ### v1.0.42
 - Correction de `Attribute.MAX_HEALTH` → `GENERIC_MAX_HEALTH` (Paper 1.21.1+) dans `PowerRegistry`
